@@ -12570,6 +12570,7 @@ namespace Thetis
         {
             if (initializing) return;
             int v = chkMercDither.Checked ? 1 : 0;
+            console.SetupInfoBarButton(ucInfoBar.ActionTypes.Dither, chkMercDither.Checked);
             NetworkIO.SetADCDither(v);
         }
 
@@ -12577,6 +12578,7 @@ namespace Thetis
         {
             if (initializing) return;
             int v = chkMercRandom.Checked ? 1 : 0;
+            console.SetupInfoBarButton(ucInfoBar.ActionTypes.Random, chkMercRandom.Checked);
             NetworkIO.SetADCRandom(v);
         }
 
