@@ -344,7 +344,7 @@ void SetTRXrelay(int bit)
 	if (prbpfilter->_TR_Relay != bit)
 	{
 		if (!prn->tx[0].pa) // disable PA
-		prbpfilter->_TR_Relay = bit & 0x1;
+			prbpfilter->_TR_Relay = bit & 0x1;
 		prbpfilter->_trx_status = prbpfilter->_TR_Relay; // TXRX_STATUS
 		prbpfilter2->_trx_status = prbpfilter->_TR_Relay; // TXRX_STATUS for Alex1
 		if (listenSock != INVALID_SOCKET && prn->sendHighPriority != 0)
@@ -631,7 +631,7 @@ void SetAlex4HPFBits(int bits)
 }
 
 PORT
-void SetAlexLPFBits(int bits, bool isTX) 
+void SetAlexLPFBits(int bits, bool isTX)
 {
 	if (AlexLPFMask != bits) 
 	{

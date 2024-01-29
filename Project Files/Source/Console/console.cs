@@ -5828,7 +5828,7 @@ namespace Thetis
 
         private void SetTXBand(Band b, bool bIngoreBandChange = false)
         {
-            if (!bIngoreBandChange && disable_split_on_bandchange) //[2.10.3.6]MW0LGE might need to ignore this is we are using extended and band is moved to a hamband
+            if (disable_split_on_bandchange && !bIngoreBandChange) //[2.10.3.6]MW0LGE might need to ignore this is we are using extended and band is moved to a hamband
             {
                 if (TXBand != b && !tuning)
                 {
@@ -6742,7 +6742,7 @@ namespace Thetis
                 else if ((decimal)freq >= SetupForm.udAlex15mLPFStart.Value && // 17/15 LPF
                           (decimal)freq <= SetupForm.udAlex15mLPFEnd.Value)
                 {
-                    NetworkIO.SetAlexLPFBits(0x40);
+                    NetworkIO.SetAlexLPFBits(0x40, freqIsTX);
                     SetupForm.rad15LPFled.Checked = true;
                 }
 
