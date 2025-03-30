@@ -6150,6 +6150,11 @@ namespace Thetis
                     chkLPFBypass.Visible = true;
                 }
                 else
+                if (HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3) //DH1KLM                
+                {
+                    chkLPFBypass.Visible = true;
+                }
+                else
                 {
                     chkLPFBypass.Checked = false;
                     chkLPFBypass.Visible = false;
