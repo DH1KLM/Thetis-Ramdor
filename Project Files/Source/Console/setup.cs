@@ -55,7 +55,7 @@ namespace Thetis
     using System.IO.Compression;
     using System.Timers;
     using System.Runtime.InteropServices;
-
+    using System.Runtime.ExceptionServices;
     public partial class Setup : Form
     {
         // for these callsigns always show cmasio tab, as a perk to the testers from discord
@@ -18580,7 +18580,6 @@ namespace Thetis
         private double m_dVAC1Perc2 = 0;
         private double m_dVAC2Perc1 = 0;
         private double m_dVAC2Perc2 = 0;
-        private int m_nAverageCount = 0;
 
         private int _oldVAC1OutOverflows = 0;
         private int _oldVAC1OutUnderflows = 0;
@@ -18592,25 +18591,31 @@ namespace Thetis
         private int _oldVAC2InOverflows = 0;
         private int _oldVAC2InUnderflows = 0;
 
+        //[2.10.3.9]MW0LGE this attribue, together with the app.config change 'legacyCorruptedStateExceptionsPolicy' enables the catch of address acceptions inside the try/catch block
+        [HandleProcessCorruptedStateExceptions]
         private void timer_VAC_Monitor_Tick(object sender, EventArgs e)
         {
-            bool updateUI = true;
+            bool updateUI;
+            double alpha = 0.05; //smothing to use on the % ringbuffer display
 
             if (!lblVAC1ovfl.Visible && !lblVAC2ovfl.Visible && !lblAdvancedAudioWarning.Visible)
             {
+                // set audio controls not visible, so update slower. We need this as front end will show the overflow/underflow 4box icon if there is an issue
                 timer_VAC_Monitor.Interval = 100;
                 updateUI = false;
             }
             else
             {
                 timer_VAC_Monitor.Interval = 50;
+                updateUI = true;
             }
 
             int underflows = 0, overflows = 0, ringsize = 0, nring = 0;
             double var = 0, dP = 0;
 
+            //VAC 1
             bool ok = true;
-            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command
+            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command, and when ZZVA is used via CAT
             {
                 unsafe
                 {
@@ -18621,6 +18626,9 @@ namespace Thetis
 
             if (ok)
             {
+                dP = (nring / (double)ringsize) * 100.0;
+                m_dVAC1Perc1 = (alpha * dP) + ((1 - alpha) * m_dVAC1Perc1);
+
                 // front end isplay of overflow/underflow MW0LGE_21k9rc5
                 if (overflows != _oldVAC1OutOverflows)
                 {
@@ -18632,7 +18640,6 @@ namespace Thetis
                     if (underflows != 0) console.VAC1UnderOver.OutUnderflow = true;
                     _oldVAC1OutUnderflows = underflows;
                 }
-                //
 
                 if (updateUI)
                 {
@@ -18641,17 +18648,25 @@ namespace Thetis
                     lblVAC1var.Text = var.ToString("F6");
                     lblVAC1NRing1.Text = nring.ToString("00000");
                     lblVAC1RingSize1.Text = ringsize.ToString("00000");
-                    dP = (nring / (double)ringsize) * 100.0;
-                    m_dVAC1Perc1 += dP;
                     lblVAC1RingPerc1.Text = dP.ToString("000");
-                    if (chkAudioEnableVAC.Checked) ucVAC1VARGrapherOut.AddDataPoint(var - 1f);
+                    lblVAC1RingPercAV1.Text = m_dVAC1Perc1.ToString("000");
+                    if (chkAudioEnableVAC.Checked)
+                    {
+                        ucVAC1VARGrapherOut.AddDataPoint(var - 1f);
+                        ucVAC1VARGrapherOut.RingBufferPerc = m_dVAC1Perc1;
+                    }
+                    try
+                    {
+                        if (Audio.VAC1ControlFlagOut)
+                            txtVAC1OldVarOut.Text = var.ToString("F6");
+                    }
+                    catch { }
                 }
-                if (Audio.VAC1ControlFlagOut)
-                    txtVAC1OldVarOut.Text = var.ToString("F6");
             }
+            else
 
             ok = true;
-            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command
+            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command, and when ZZVA is used via CAT
             {
                 unsafe
                 {
@@ -18662,6 +18677,9 @@ namespace Thetis
 
             if (ok)
             {
+                dP = (nring / (double)ringsize) * 100.0;
+                m_dVAC1Perc2 = (alpha * dP) + ((1 - alpha) * m_dVAC1Perc2);
+
                 // front end isplay of overflow/underflow MW0LGE_21k9rc5
                 if (overflows != _oldVAC1InOverflows)
                 {
@@ -18673,7 +18691,6 @@ namespace Thetis
                     if (underflows != 0) console.VAC1UnderOver.InUnderflow = true;
                     _oldVAC1InUnderflows = underflows;
                 }
-                //
 
                 if (updateUI)
                 {
@@ -18682,17 +18699,25 @@ namespace Thetis
                     lblVAC1var2.Text = var.ToString("F6");
                     lblVAC1NRing2.Text = nring.ToString("00000");
                     lblVAC1RingSize2.Text = ringsize.ToString("00000");
-                    dP = (nring / (double)ringsize) * 100.0;
-                    m_dVAC1Perc2 += dP;
                     lblVAC1RingPerc2.Text = dP.ToString("000");
-                    if (chkAudioEnableVAC.Checked) ucVAC1VARGrapherIn.AddDataPoint(var - 1f);
+                    lblVAC1RingPercAV2.Text = m_dVAC1Perc2.ToString("000");
+                    if (chkAudioEnableVAC.Checked)
+                    {
+                        ucVAC1VARGrapherIn.AddDataPoint(var - 1f);
+                        ucVAC1VARGrapherIn.RingBufferPerc = m_dVAC1Perc2;
+                    }
+                    try
+                    {
+                        if (Audio.VAC1ControlFlagIn)
+                            txtVAC1OldVarIn.Text = var.ToString("F6");
+                    }
+                    catch { }
                 }
-                if (Audio.VAC1ControlFlagIn)
-                    txtVAC1OldVarIn.Text = var.ToString("F6");
             }
 
+            //VAC 2
             ok = true;
-            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command
+            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command, and when ZZVA is used via CAT
             {
                 unsafe
                 {
@@ -18703,6 +18728,9 @@ namespace Thetis
 
             if (ok)
             {
+                dP = (nring / (double)ringsize) * 100.0;
+                m_dVAC2Perc1 = (alpha * dP) + ((1 - alpha) * m_dVAC2Perc1);
+
                 // front end isplay of overflow/underflow MW0LGE_21k9rc5
                 if (overflows != _oldVAC2OutOverflows)
                 {
@@ -18714,7 +18742,6 @@ namespace Thetis
                     if (underflows != 0) console.VAC2UnderOver.OutUnderflow = true;
                     _oldVAC2OutUnderflows = underflows;
                 }
-                //
 
                 if (updateUI)
                 {
@@ -18723,15 +18750,24 @@ namespace Thetis
                     lblVAC2var.Text = var.ToString("F6");
                     lblVAC2NRing1.Text = nring.ToString("00000");
                     lblVAC2RingSize1.Text = ringsize.ToString("00000");
-                    dP = (nring / (double)ringsize) * 100.0;
-                    m_dVAC2Perc1 += dP;
                     lblVAC2RingPerc1.Text = dP.ToString("000");
-                    if (chkVAC2Enable.Checked) ucVAC2VARGrapherOut.AddDataPoint(var - 1f);
+                    lblVAC2RingPercAV1.Text = m_dVAC2Perc1.ToString("000");
+                    if (chkVAC2Enable.Checked)
+                    {
+                        ucVAC2VARGrapherOut.AddDataPoint(var - 1f);
+                        ucVAC2VARGrapherOut.RingBufferPerc = m_dVAC2Perc1;
+                    }
+                    try
+                    {
+                        if (Audio.VAC2ControlFlagOut)
+                            txtVAC2OldVarOut.Text = var.ToString("F6");
+                    }
+                    catch { }
                 }
             }
 
             ok = true;
-            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command
+            try //[2.10.3.7]MW0LGE this can fail if the vac is turned on/off. Mostly seen when TCI server does it via line_out command, and when ZZVA is used via CAT
             {
                 unsafe
                 {
@@ -18742,6 +18778,9 @@ namespace Thetis
 
             if (ok)
             {
+                dP = (nring / (double)ringsize) * 100.0;
+                m_dVAC2Perc2 = (alpha * dP) + ((1 - alpha) * m_dVAC2Perc2);
+
                 // front end isplay of overflow/underflow MW0LGE_21k9rc5
                 if (overflows != _oldVAC2InOverflows)
                 {
@@ -18753,7 +18792,6 @@ namespace Thetis
                     if (underflows != 0) console.VAC2UnderOver.InUnderflow = true;
                     _oldVAC2InUnderflows = underflows;
                 }
-                //
 
                 if (updateUI)
                 {
@@ -18762,40 +18800,19 @@ namespace Thetis
                     lblVAC2var2.Text = var.ToString("F6");
                     lblVAC2NRing2.Text = nring.ToString("00000");
                     lblVAC2RingSize2.Text = ringsize.ToString("00000");
-                    dP = (nring / (double)ringsize) * 100.0;
-                    m_dVAC2Perc2 += dP;
                     lblVAC2RingPerc2.Text = dP.ToString("000");
-                    if (chkVAC2Enable.Checked) ucVAC2VARGrapherIn.AddDataPoint(var - 1f);
-                }
-
-                if (updateUI)
-                {
-                    m_nAverageCount++;
-                    if (m_nAverageCount > 9)
+                    lblVAC2RingPercAV2.Text = m_dVAC2Perc2.ToString("000");
+                    if (chkVAC2Enable.Checked)
                     {
-                        m_dVAC1Perc1 /= (m_nAverageCount + 1);
-                        m_dVAC1Perc2 /= (m_nAverageCount + 1);
-                        m_dVAC2Perc1 /= (m_nAverageCount + 1);
-                        m_dVAC2Perc2 /= (m_nAverageCount + 1);
-
-                        lblVAC1RingPercAV1.Text = m_dVAC1Perc1.ToString("000");
-                        lblVAC1RingPercAV2.Text = m_dVAC1Perc2.ToString("000");
-                        lblVAC2RingPercAV1.Text = m_dVAC2Perc1.ToString("000");
-                        lblVAC2RingPercAV2.Text = m_dVAC2Perc2.ToString("000");
-
-                        if (chkAudioEnableVAC.Checked)
-                        {
-                            ucVAC1VARGrapherOut.RingBufferPerc = m_dVAC1Perc1;
-                            ucVAC1VARGrapherIn.RingBufferPerc = m_dVAC1Perc2;
-                        }
-                        if (chkVAC2Enable.Checked)
-                        {
-                            ucVAC2VARGrapherOut.RingBufferPerc = m_dVAC2Perc1;
-                            ucVAC2VARGrapherIn.RingBufferPerc = m_dVAC2Perc2;
-                        }
-
-                        m_nAverageCount = 0;
+                        ucVAC2VARGrapherIn.AddDataPoint(var - 1f);
+                        ucVAC2VARGrapherIn.RingBufferPerc = m_dVAC2Perc2;
                     }
+                    try
+                    {
+                        if (Audio.VAC2ControlFlagIn)
+                            txtVAC2OldVarIn.Text = var.ToString("F6");
+                    }
+                    catch { }
                 }
             }
         }
@@ -27690,6 +27707,9 @@ namespace Thetis
                     comboSkinServerList.DataSource = e.SkinServers;
                     bIgnoreSkinServerListUpdate = false;
                     Debug.Print($"{e.SkinServers.Count} skin servers");
+
+                    //skin test code
+                    //e.SkinServers[3].SkinServerUrl = "https://raw.githubusercontent.com/N2MDX/N2MDX-Skins/refs/heads/main/n2mdx_skin_server.json";
                 }
                 else
                 {
@@ -27782,52 +27802,91 @@ namespace Thetis
                     if (sFile == "")
                         sFile = getFileFromUrl(e.FinalUri);
 
-                    if (isSkinZipFile(e.Path, sFile, out bool bUsesFileInRoot, out bool bMeterFolderFound, e.BypassRootFolderCheck || e.IsMeterSkin))
+                    if (isSkinZipFile(e.Path, sFile, out bool bUsesFilesInRoot, out bool bSkinsFolderFoundInRoot, out bool bConsoleFolderFoundInRoot, out bool bMeterFolderFoundInRoot, e.BypassRootFolderCheck || e.IsMeterSkin))
                     {
                         string sOutputPath = "";
 
-                        if (bUsesFileInRoot || (e.BypassRootFolderCheck && !bMeterFolderFound))
-                        {
-                            //expand into OpenHPSDR\Skins
-                            sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Skins";
-                            bExtract = true;
-                        }
-                        else if (bMeterFolderFound || e.IsMeterSkin)
+                        if (e.IsMeterSkin || bMeterFolderFoundInRoot)
                         {
                             if (chkReplaceCurrentMeterInSelectedSkin.Checked)
                             {
-                                if (Directory.Exists(_skinPath + "\\" + comboAppSkin.Text))
-                                {
-                                    if (bMeterFolderFound)
-                                        sOutputPath = _skinPath + "\\" + comboAppSkin.Text;
-                                    else
-                                        sOutputPath = _skinPath + "\\" + comboAppSkin.Text + "\\Meters";
-
-                                    bExtract = true;
-                                }
+                                if (bMeterFolderFoundInRoot)
+                                    sOutputPath = _skinPath + "\\" + comboAppSkin.Text;
+                                else
+                                    sOutputPath = _skinPath + "\\" + comboAppSkin.Text + "\\Meters";                                
                             }
                             else
                             {
-                                if (bMeterFolderFound)
+                                if (bMeterFolderFoundInRoot)
                                     sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR";
                                 else
                                     sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Meters";
-                                bExtract = true;
                             }
+                            bExtract = true;
                             bExpandedMeterSkins = true;
                         }
-                        else
+
+                        if (!e.IsMeterSkin) // a console skin, may include include Meters inside sub folder
                         {
-                            //expand into OpenHPSDR\
-                            sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR";
-                            bExtract = true;
+                            if (bUsesFilesInRoot || e.BypassRootFolderCheck)
+                            {
+                                sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Skins";
+                                bExtract = true;
+                            }
+                            else
+                            {
+                                if (bConsoleFolderFoundInRoot || bMeterFolderFoundInRoot)
+                                    sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Skins\\" + sFile;
+                                else
+                                    sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR";
+                                bExtract = true;
+                            }
                         }
+
+                        //if (bUsesFilesInRoot || (e.BypassRootFolderCheck && !bMeterFolderFoundInRoot))
+                        //{
+                        //    //expand direct into OpenHPSDR\Skins
+                        //    sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Skins";
+                        //    bExtract = true;
+                        //}
+                        //else if (bMeterFolderFoundInRoot || e.IsMeterSkin)
+                        //{
+                        //    if (chkReplaceCurrentMeterInSelectedSkin.Checked)
+                        //    {
+                        //        if (Directory.Exists(_skinPath + "\\" + comboAppSkin.Text))
+                        //        {
+                        //            if (bMeterFolderFoundInRoot)
+                        //                sOutputPath = _skinPath + "\\" + comboAppSkin.Text;
+                        //            else
+                        //                sOutputPath = _skinPath + "\\" + comboAppSkin.Text + "\\Meters";
+
+                        //            bExtract = true;
+                        //        }
+                        //    }
+                        //    else
+                        //    {
+                        //        if (bMeterFolderFoundInRoot)
+                        //            sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR";
+                        //        else
+                        //            sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR\\Meters";
+                        //        bExtract = true;
+                        //    }
+                        //    bExpandedMeterSkins = true;
+                        //}
+                        //else
+                        //{
+                        //    //expand into OpenHPSDR\
+                        //    sOutputPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\OpenHPSDR";
+                        //    bExtract = true;
+                        //}
 
                         if (bExtract)
                         {
                             Cursor c = Cursor.Current;
                             Cursor.Current = Cursors.WaitCursor;
                             sRootFolder = extractImagesFilesFromZip(e.Path, sOutputPath);
+                            string lowRootFolder = sRootFolder.ToLower();
+                            if (lowRootFolder == "console" || lowRootFolder == "meters") sRootFolder = sFile;
                             Cursor.Current = c;
                         }
                         else
@@ -27974,59 +28033,100 @@ namespace Thetis
 
             updateSelectedSkin();
         }
-        private bool isSkinZipFile(string filePath, string sFilename, out bool usesFilenameInRoot, out bool isMeterSkin, bool bypassRootFolderCheck)
+        private bool isSkinZipFile(string filePath, string sFilename, out bool usesFilesInRoot, out bool bSkinsFolderFoundInRoot, out bool bConsoleFolderFoundInRoot, out bool bMeterFolderFoundInRoot, bool bypassRootFolderCheck)
         {
             bool bOk = false;
-            usesFilenameInRoot = false;
-            isMeterSkin = false;
+            usesFilesInRoot = false;
+
+            bMeterFolderFoundInRoot = false;
+            bConsoleFolderFoundInRoot = false;
+            bSkinsFolderFoundInRoot = false;
 
             try
             {
                 using (ZipArchive zipFile = ZipFile.OpenRead(filePath))
                 {
-                    // Check if there is a directory entry starting with "Meters/"
+                    // Check if there is a root directory entry starting with "Meters/" in root
                     if (zipFile.Entries.Any(entry => entry.FullName.StartsWith("Meters/") && entry.FullName.EndsWith("/")))
                     {
-                        bOk = true;
-                        isMeterSkin = true;
+                        bMeterFolderFoundInRoot = true;
                     }
-
-                    if (!bOk)
+                    // Check if there is a root directory entry starting with "Console/" in root
+                    if (zipFile.Entries.Any(entry => entry.FullName.StartsWith("Console/") && entry.FullName.EndsWith("/")))
                     {
-                        if (!bypassRootFolderCheck)
-                        {
-                            // Check for "Skins/" directory
-                            if (!bOk && zipFile.Entries.Any(entry => entry.FullName.StartsWith("Skins/") && entry.FullName.EndsWith("/")))
-                            {
-                                bOk = true;
-                            }
+                        bConsoleFolderFoundInRoot = true;
+                    }
+                    // Check for "Skins/" directory
+                    if (!bOk && zipFile.Entries.Any(entry => entry.FullName.StartsWith("Skins/") && entry.FullName.EndsWith("/")))
+                    {
+                        bSkinsFolderFoundInRoot = true;
+                    }
 
-                            if (!bOk && !string.IsNullOrEmpty(sFilename))
-                            {
-                                // Different filename checks
-                                string sReplacedWithSpaces = sFilename.Replace("_", " ");
-                                string sReplacedWithoutSpaces = sFilename.Replace(" ", "_");
-                                string sReplacedWithMinus = sFilename.Replace(" ", "-");
-                                string sReplacedWithoutMinus = sFilename.Replace("-", " ");
+                    if(!bMeterFolderFoundInRoot && !bConsoleFolderFoundInRoot && !bSkinsFolderFoundInRoot && !string.IsNullOrEmpty(sFilename))
+                    {
+                        // Check if any suitable files in root
+                        string sReplacedWithSpaces = sFilename.Replace("_", " ");
+                        string sReplacedWithoutSpaces = sFilename.Replace(" ", "_");
+                        string sReplacedWithMinus = sFilename.Replace(" ", "-");
+                        string sReplacedWithoutMinus = sFilename.Replace("-", " ");
 
-                                if (zipFile.Entries.Any(entry =>
-                                    (entry.FullName.StartsWith(sFilename + "/") ||
-                                     entry.FullName.StartsWith(sReplacedWithSpaces + "/") ||
-                                     entry.FullName.StartsWith(sReplacedWithoutSpaces + "/") ||
-                                     entry.FullName.StartsWith(sReplacedWithMinus + "/") ||
-                                     entry.FullName.StartsWith(sReplacedWithoutMinus + "/")) &&
-                                     entry.FullName.EndsWith("/")))
-                                {
-                                    usesFilenameInRoot = true;
-                                    bOk = true;
-                                }
-                            }
-                        }
-                        else
+                        if (zipFile.Entries.Any(entry =>
+                            (entry.FullName.StartsWith(sFilename + "/") ||
+                                entry.FullName.StartsWith(sReplacedWithSpaces + "/") ||
+                                entry.FullName.StartsWith(sReplacedWithoutSpaces + "/") ||
+                                entry.FullName.StartsWith(sReplacedWithMinus + "/") ||
+                                entry.FullName.StartsWith(sReplacedWithoutMinus + "/")) &&
+                                entry.FullName.EndsWith("/")))
                         {
-                            bOk = true;
+                            usesFilesInRoot = true;
                         }
                     }
+
+                    bOk = bypassRootFolderCheck || bMeterFolderFoundInRoot || bConsoleFolderFoundInRoot || bSkinsFolderFoundInRoot || usesFilesInRoot;
+
+                    //// Check if there is a directory entry starting with "Meters/"
+                    //if (zipFile.Entries.Any(entry => entry.FullName.StartsWith("Meters/") && entry.FullName.EndsWith("/")))
+                    //{
+                    //    bOk = true;
+                    //    bMeterFolderFound = true;
+                    //}
+
+                    //if (!bOk)
+                    //{
+                    //    if (!bypassRootFolderCheck)
+                    //    {
+                    //        // Check for "Skins/" directory
+                    //        if (!bOk && zipFile.Entries.Any(entry => entry.FullName.StartsWith("Skins/") && entry.FullName.EndsWith("/")))
+                    //        {
+                    //            bOk = true;
+                    //        }
+
+                    //        if (!bOk && !string.IsNullOrEmpty(sFilename))
+                    //        {
+                    //            // Different filename checks
+                    //            string sReplacedWithSpaces = sFilename.Replace("_", " ");
+                    //            string sReplacedWithoutSpaces = sFilename.Replace(" ", "_");
+                    //            string sReplacedWithMinus = sFilename.Replace(" ", "-");
+                    //            string sReplacedWithoutMinus = sFilename.Replace("-", " ");
+
+                    //            if (zipFile.Entries.Any(entry =>
+                    //                (entry.FullName.StartsWith(sFilename + "/") ||
+                    //                 entry.FullName.StartsWith(sReplacedWithSpaces + "/") ||
+                    //                 entry.FullName.StartsWith(sReplacedWithoutSpaces + "/") ||
+                    //                 entry.FullName.StartsWith(sReplacedWithMinus + "/") ||
+                    //                 entry.FullName.StartsWith(sReplacedWithoutMinus + "/")) &&
+                    //                 entry.FullName.EndsWith("/")))
+                    //            {
+                    //                usesFilesInRoot = true;
+                    //                bOk = true;
+                    //            }
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        bOk = true;
+                    //    }
+                    //}
                 }
             }
             catch (InvalidDataException)
