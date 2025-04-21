@@ -50,12 +50,19 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace Thetis
 {
+    public static class FloatExtensions
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Clamp(this float v, float min, float max) => (v < min) ? min : (v > max) ? max : v;
+    }
 	public static class StringExtensions
 	{
         // extend contains to be able to ignore case etc MW0LGE
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Contains(this string source, string toCheck, StringComparison comp)
 		{
             if (source == null)
@@ -69,7 +76,7 @@ namespace Thetis
 
             return source?.IndexOf(toCheck, comp) >= 0;
 		}
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string Left(this string source, int length)
         {
             if (source == null)
@@ -84,6 +91,7 @@ namespace Thetis
 
             return source.Length > length ? source.Substring(0, length) : source;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string Right(this string source, int length)
         {
             if (source == null)
@@ -101,6 +109,7 @@ namespace Thetis
     }
     public static class ControlExtentions
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetFullName(this Control control)
         {
             if (control == null)
@@ -1698,6 +1707,15 @@ namespace Thetis
                 Math.Min(formBounds.Y, screenWorkingArea.Bottom - formBounds.Height));
 
             return new Rectangle(new Point(newX, newY), formBounds.Size);
+        }
+
+        [DllImport("kernel32.dll")]
+        private static extern bool SetProcessPriorityBoost(IntPtr processHandle, bool disablePriorityBoost);
+        public static void DisableForegroundPriorityBoost()
+        {
+            // Prevent Windows from downgrading app CPU time when it loses focus
+            Process process = Process.GetCurrentProcess();
+            SetProcessPriorityBoost(process.Handle, true);
         }
     }
 }

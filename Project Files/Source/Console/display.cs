@@ -37,6 +37,7 @@ using System.Linq;
 namespace Thetis
 {
     using System;
+    using System.Runtime.CompilerServices;
     using System.Collections.Generic;
     using System.Drawing;
     using System.Drawing.Imaging;
@@ -2564,7 +2565,6 @@ namespace Thetis
         {
             return Color.FromArgb(A, c.R, c.G, c.B);
         }
-
         private static float dBToPixel(float dB, int H, bool tx = false)
         {
             if (!tx)
@@ -2576,7 +2576,6 @@ namespace Thetis
                 return (float)(tx_spectrum_grid_max - dB) * H / (tx_spectrum_grid_max - tx_spectrum_grid_min);
             }
         }
-
         private static float dBToRX2Pixel(float dB, int H, bool tx = false)
         {
             if (!tx)
@@ -2916,7 +2915,7 @@ namespace Thetis
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("Problem Shutting Down DirectX !" + System.Environment.NewLine + System.Environment.NewLine + "[" + e.ToString() + "]", "DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                    MessageBox.Show("Problem Shutting Down DirectX !" + System.Environment.NewLine + System.Environment.NewLine + "[" + e.ToString() + "]", "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 }
             }
         }
@@ -3118,7 +3117,7 @@ namespace Thetis
                 {
                     // issue setting up dx
                     ShutdownDX2D();
-                    MessageBox.Show("Problem initialising DirectX !" + System.Environment.NewLine + System.Environment.NewLine + "[" + e.ToString() + "]", "DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                    MessageBox.Show("Problem initialising DirectX !" + System.Environment.NewLine + System.Environment.NewLine + "[" + e.ToString() + "]", "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 }
             }
         }
@@ -3205,7 +3204,7 @@ namespace Thetis
                 ShutdownDX2D();
                 MessageBox.Show("DirectX resizeDX2D() Meter failure\n\nThis can sometimes be caused by other programs 'hooking' into directX," +
                     "such as GFX card control software (eg, EVGA Precision Xoc). Close down Thetis, quit as many 'system tray' and other\n" +
-                    "things as possible and try again.\n\n" + e.Message, "DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                    "things as possible and try again.\n\n" + e.Message, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
             }
         }
 
@@ -3653,7 +3652,7 @@ namespace Thetis
             catch (Exception e)
             {
                 ShutdownDX2D();
-                MessageBox.Show("Problem in DirectX Renderer !" + System.Environment.NewLine + System.Environment.NewLine + "[ " + e.ToString() + " ]", "DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                MessageBox.Show("Problem in DirectX Renderer !" + System.Environment.NewLine + System.Environment.NewLine + "[ " + e.ToString() + " ]", "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
             }
         }
 
@@ -3756,6 +3755,8 @@ namespace Thetis
         static private Maximums[] m_nRX2Maximums = new Maximums[20]; // max of 20 blobs
         private static Maximums[] m_rx1_spectrumPeaks;
         private static Maximums[] m_rx2_spectrumPeaks;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static private void processMaximums(int rx, float dbm, int nX, int nY)
         {
             Maximums[] maximums;
@@ -4240,6 +4241,7 @@ namespace Thetis
         private static float _ema_oip3;
         private static float _ema_oip5;
         //
+
         unsafe static private bool DrawPanadapterDX2D(int nVerticalShift, int W, int H, int rx, bool bottom)
         {
             //if (grid_control) //[2.10.3.9]MW0LGE raw grid control option now just turns off the grid, all other elements are shown
@@ -4402,8 +4404,6 @@ namespace Thetis
 
             if (local_mox)
             {
-                //lineBrush = m_bDX2_tx_data_line_pen_brush;
-                //fillBrush = m_bDX2_tx_data_line_fpen_brush;
                 if (rx == 1)
                 {
                     lineBrush = m_bUseLinearGradientForDataLineTX && m_bUseLinearGradientTX ? m_brushLGDataLineTX_RX1 : m_bDX2_data_line_pen_brush_tx;
@@ -4439,8 +4439,7 @@ namespace Thetis
             // calc start pos
             int Y;
             max = data[0] + fOffset;
-            Y = (int)(((grid_max - max) * dbmToPixel) - 0.5f); // -0.5 to mimic floor
-            Y += nVerticalShift;
+            Y = (int)((grid_max - max) * dbmToPixel - 0.5f) + nVerticalShift;// -0.5 to mimic floor
 
             bool bIgnoringPoints = false;
             SharpDX.Vector2 point = new SharpDX.Vector2();
@@ -4515,6 +4514,8 @@ namespace Thetis
                 int averageCount = 1;
                 float currentAverage = rx == 1 ? m_fFFTBinAverageRX1 + 2 : m_fFFTBinAverageRX2 + 2; // +2db to add some extras above the average
 
+                bool peaks_imds = bPeakBlobs || show_imd_measurements;
+
                 for (int i = 0; i < nDecimatedWidth; i++)
                 {
                     point.X = i * m_nDecimation;
@@ -4525,14 +4526,12 @@ namespace Thetis
                     // noise floor
                     if (!local_mox && (max_copy < currentAverage))
                     {
-                        averageSum += (float)Math.Pow(10f, max_copy / 10f);
+                        //averageSum += (float)Math.Pow(10f, max_copy / 10f);
+                        averageSum += FastPow10Raw(max_copy);
                         averageCount++;
                     }
-                    //
 
-                    Y = (int)(((grid_max - max) * dbmToPixel) - 0.5f); // -0.5 to mimic floor
-                    Y += nVerticalShift;
-
+                    Y = (int)((grid_max - max) * dbmToPixel - 0.5f) + nVerticalShift;// -0.5 to mimic floor
                     point.Y = Y;
 
                     if (max > local_max_y)
@@ -4543,19 +4542,16 @@ namespace Thetis
                         local_max_Pixel_y = Y;
                     }
 
-                    if (bSpectralPeakHold)
+                    if (bSpectralPeakHold && max >= spectralPeaks[i].max_dBm)
                     {
-                        if (max >= spectralPeaks[i].max_dBm)
-                        {
-                            spectralPeaks[i].max_dBm = max;
-                            spectralPeaks[i].Time = m_dElapsedFrameStart;
-                        }
+                        spectralPeaks[i].max_dBm = max;
+                        spectralPeaks[i].Time = m_dElapsedFrameStart;
                     }
 
                     ///
                     /// new peak blob code MW0LGE_21b
                     ///
-                    if (bPeakBlobs || show_imd_measurements)
+                    if (peaks_imds)
                     {
                         bool bInsideFilter =  m_bInsideFilterOnly && (point.X >= filter_left_x) && (point.X <= filter_right_x);
                         if (!m_bInsideFilterOnly || bInsideFilter || show_imd_measurements)
@@ -4623,8 +4619,7 @@ namespace Thetis
                         {
                             // draw to peak, but re-work Y as we might rescale the spectrum vertically
                             spectralPeakPoint.X = point.X;
-                            spectralPeakPoint.Y = (int)(((grid_max - spectralPeaks[i].max_dBm) * dbmToPixel) - 0.5f);
-                            spectralPeakPoint.Y += nVerticalShift;
+                            spectralPeakPoint.Y = (int)((grid_max - spectralPeaks[i].max_dBm) * dbmToPixel - 0.5f) + nVerticalShift;// -0.5 to mimic floor
 
                             if (bActivePeakFill)
                             {
@@ -4766,8 +4761,7 @@ namespace Thetis
                                     maximums[n].max_dBm -= m_dBmPerSecondPeakBlobFall / (float)m_nFps;
 
                                     // recalc Y
-                                    int nNewY = (int)(((grid_max - maximums[n].max_dBm) * dbmToPixel) - 0.5f);
-                                    maximums[n].MaxY_pixel = nNewY;
+                                    maximums[n].MaxY_pixel = (int)(((grid_max - maximums[n].max_dBm) * dbmToPixel) - 0.5f);// -0.5 to mimic floor
                                 }
                                 else if (maximums[n].max_dBm <= -200.0)
                                 {
@@ -5083,16 +5077,17 @@ namespace Thetis
                 if (averageCount >= requireSamples)
                 {
                     float linearAverage = averageSum / (float)averageCount;
-                    float oldLinear = (float)Math.Pow(10f, m_fFFTBinAverageRX1 / 10f);
+                    //float oldLinear = (float)Math.Pow(10f, m_fFFTBinAverageRX1 / 10f);
+                    float oldLinear = FastPow10Raw(m_fFFTBinAverageRX1);
                     float newLinear = (linearAverage + oldLinear) / 2f;
-                    m_fFFTBinAverageRX1 = (float)(10f * Math.Log10(newLinear));
+                    float tmp = (float)(10f * Math.Log10(newLinear));
+                    if (!float.IsNaN(tmp)) m_fFFTBinAverageRX1 = tmp;
                 }
                 else
                 {
                     m_fFFTBinAverageRX1 += m_bFastAttackNoiseFloorRX1 ? 3f : 1f;
                 }
-                if (m_fFFTBinAverageRX1 > 200) m_fFFTBinAverageRX1 = 200;
-                if (m_fFFTBinAverageRX1 < -200) m_fFFTBinAverageRX1 = -200;
+                m_fFFTBinAverageRX1 = m_fFFTBinAverageRX1.Clamp(-200f, 200f);
 
                 // so in attackTime period we need to have moved to where we want
                 int framesInAttackTime = m_bFastAttackNoiseFloorRX1 ? 0 : (int)((fps / 1000f) * (double)m_fAttackTimeInMSForRX1);
@@ -5117,16 +5112,17 @@ namespace Thetis
                 if (averageCount >= requireSamples)
                 {
                     float linearAverage = averageSum / (float)averageCount;
-                    float oldLinear = (float)Math.Pow(10f, m_fFFTBinAverageRX2 / 10f);
+                    //float oldLinear = (float)Math.Pow(10f, m_fFFTBinAverageRX2 / 10f);
+                    float oldLinear = FastPow10Raw(m_fFFTBinAverageRX2);
                     float newLinear = (linearAverage + oldLinear) / 2f;
-                    m_fFFTBinAverageRX2 = (float)(10f * Math.Log10(newLinear));
+                    float tmp = (float)(10f * Math.Log10(newLinear));
+                    if (!float.IsNaN(tmp)) m_fFFTBinAverageRX2 = tmp;
                 }
                 else
                 {
                     m_fFFTBinAverageRX2 += m_bFastAttackNoiseFloorRX2 ? 3f : 1f;
                 }
-                if (m_fFFTBinAverageRX2 > 200) m_fFFTBinAverageRX2 = 200;
-                if (m_fFFTBinAverageRX2 < -200) m_fFFTBinAverageRX2 = -200;
+                m_fFFTBinAverageRX2 = m_fFFTBinAverageRX2.Clamp(-200f, 200f);
 
                 // so in attackTime period we need to have moved to where we want
                 int framesInAttackTime = m_bFastAttackNoiseFloorRX2 ? 0 : (int)((fps / 1000f) * (double)m_fAttackTimeInMSForRX2);
@@ -5443,7 +5439,8 @@ namespace Thetis
                         // noise floor
                         if (!local_mox && (max_copy < currentAverage))
                         {
-                            averageSum += (float)Math.Pow(10f, max_copy / 10f);
+                            //averageSum += (float)Math.Pow(10f, max_copy / 10f);
+                            averageSum += FastPow10Raw(max_copy);
                             averageCount++;
                         }
                         //
@@ -7215,52 +7212,53 @@ namespace Thetis
                 }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawLineDX2D(SharpDX.Direct2D1.Brush b, float x1, float y1, float x2, float y2, float strokeWidth = 1f)
         {
-            //0.5f's to move into 'centre' of desired pixel
             _d2dRenderTarget.DrawLine(new SharpDX.Vector2(x1, y1), new SharpDX.Vector2(x2, y2), b, strokeWidth);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawLineDX2D(SharpDX.Direct2D1.Brush b, float x1, float y1, float x2, float y2, StrokeStyle strokeStyle, float strokeWidth = 1f)
         {
-            //0.5f's to move into 'centre' of desired pixel
             _d2dRenderTarget.DrawLine(new SharpDX.Vector2(x1, y1), new SharpDX.Vector2(x2, y2), b, strokeWidth, strokeStyle);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawFillRectangleDX2D(SharpDX.Direct2D1.Brush b, float x, float y, float w, float h)
         {
             RectangleF rect = new RectangleF(x, y, w, h);
-
             _d2dRenderTarget.FillRectangle(rect, b);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawRectangleDX2D(SharpDX.Direct2D1.Brush b, float x, float y, float w, float h)
         {
             RectangleF rect = new RectangleF(x, y, w, h);
-
             _d2dRenderTarget.DrawRectangle(rect, b);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawElipseDX2D(SharpDX.Direct2D1.Brush b, float xMiddle, float yMiddle, float w, float h)
         {
             Ellipse e = new Ellipse(new SharpDX.Vector2(xMiddle, yMiddle), w / 2, h / 2);
-
             _d2dRenderTarget.DrawEllipse(e, b);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawFillElipseDX2D(SharpDX.Direct2D1.Brush b, float xMiddle, float yMiddle, float w, float h)
         {
             Ellipse e = new Ellipse(new SharpDX.Vector2(xMiddle, yMiddle), w / 2, h / 2);
-
             _d2dRenderTarget.FillEllipse(e, b);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawRectangleDX2D(SharpDX.Direct2D1.Brush b, Rectangle r, float lineWidth = 1)
         {
             RectangleF rect = new RectangleF(r.X, r.Y, r.Width, r.Height);
-
             _d2dRenderTarget.DrawRectangle(rect, b, lineWidth);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawFillRectangleDX2D(SharpDX.Direct2D1.Brush b, Rectangle r)
         {
             RectangleF rect = new RectangleF(r.X, r.Y, r.Width, r.Height);
-
             _d2dRenderTarget.FillRectangle(rect, b);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void drawStringDX2D(string s, SharpDX.DirectWrite.TextFormat tf, SharpDX.Direct2D1.Brush b, float x, float y)
         {
             RectangleF rect = new RectangleF(x, y, float.PositiveInfinity, float.PositiveInfinity);
@@ -7294,20 +7292,27 @@ namespace Thetis
                 }
             }
         }
-        private static Dictionary<string, System.Drawing.SizeF> m_stringSizeCache = new Dictionary<string, System.Drawing.SizeF>();
-        private static Queue<string> _stringMeasureKeys = new Queue<string>();
-        
+
+        private const int MAX_STRING_CACHE_ENTRIES = 500;
+        private static readonly Dictionary<(string Text, string FontFamily, float Size), System.Drawing.SizeF> m_stringSizeCache = new Dictionary<(string Text, string FontFamily, float Size), System.Drawing.SizeF>(MAX_STRING_CACHE_ENTRIES + 1);
+        private static readonly Queue<(string Text, string FontFamily, float Size)> _stringMeasureKeys = new Queue<(string Text, string FontFamily, float Size)>(MAX_STRING_CACHE_ENTRIES + 1);
+
         private static System.Drawing.SizeF measureStringDX2D(string s, SharpDX.DirectWrite.TextFormat tf, bool cacheStringLength = false)
         {
             // keep cache of calced sizes as this is quite a slow process
-            string key;
 
+            (string Text, string FontFamily, float Size) key;
             if (cacheStringLength)
-                key = s.Length.ToString() + tf.FontFamilyName + tf.FontSize.ToString();
+            {
+                key = (s.Length.ToString(), tf.FontFamilyName, tf.FontSize);
+            }
             else
-                key = s + tf.FontFamilyName + tf.FontSize.ToString();
+            {
+                key = (s, tf.FontFamilyName, tf.FontSize);
+            }
 
-            if (m_stringSizeCache.ContainsKey(key)) return m_stringSizeCache[key];
+            if (m_stringSizeCache.TryGetValue(key, out SizeF cached))
+                return cached;
 
             SharpDX.DirectWrite.TextLayout layout = new SharpDX.DirectWrite.TextLayout(fontFactory, s, tf, float.PositiveInfinity, float.PositiveInfinity);
             System.Drawing.SizeF sz = new System.Drawing.SizeF(layout.Metrics.Width, layout.Metrics.Height);
@@ -7316,9 +7321,9 @@ namespace Thetis
 
             m_stringSizeCache.Add(key, sz);
             _stringMeasureKeys.Enqueue(key);
-            if (m_stringSizeCache.Count > 500)
+            if (m_stringSizeCache.Count > MAX_STRING_CACHE_ENTRIES)
             {
-                string oldKey = _stringMeasureKeys.Dequeue();
+                (string Text, string FontFamily, float Size) oldKey = _stringMeasureKeys.Dequeue();
                 m_stringSizeCache.Remove(oldKey); // [2.10.1.0] MW0LGE dictionary is not ordered
             }
 
@@ -7507,6 +7512,43 @@ namespace Thetis
             get { return _joinBandEdges; }
             set { _joinBandEdges = value; }
         }
+
+        private const float Scale10 = 27866352.59211258f;
+        private const float Scale = 2786635.259211258f;
+        private const int Bias = 0x3f800000;
+
+        // version that expects (dB / 10)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static unsafe float FastPow10Shifted(float dBdiv10)
+        {
+            if (dBdiv10 < -20 || dBdiv10 > 20) // mathematical limit calculated: ~ -38.2 to +38.5
+                return (float)Math.Pow(10.0, dBdiv10);
+
+            int bits = (int)(dBdiv10 * Scale10) + Bias;
+            float ret = *(float*)&bits;
+
+            if (float.IsNaN(ret))
+                ret = (float)Math.Pow(10.0, dBdiv10);
+
+            return ret;
+        }
+
+        // version that takes the raw dB value (no /10 at call site)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static unsafe float FastPow10Raw(float dB)
+        {            
+            if(dB < -200 || dB > 200)  // mathematical limit calculated: ~ -382.3 to +385.3
+                return (float)Math.Pow(10.0, dB / 10.0);
+
+            int bits = (int)(dB * Scale) + Bias;
+            float ret = *(float*)&bits;
+
+            if (float.IsNaN(ret))
+                ret = (float)Math.Pow(10.0, dB / 10.0);
+
+            return ret;
+        }
+
         private static int drawPanadapterAndWaterfallGridDX2D(int nVerticalShift, int W, int H, int rx, bool bottom, out long left_edge, out long right_edge, bool bIsWaterfall = false)
         {
             // MW0LGE
@@ -10152,8 +10194,7 @@ namespace Thetis
 
         private static List<int> _spotLayerRightRX1 = new List<int>();
         private static List<int> _spotLayerRightRX2 = new List<int>();
-        private static Dictionary<Color, SharpDX.Direct2D1.Brush> _DX2Brushes = null;
-
+        private static readonly Dictionary<int, SharpDX.Direct2D1.Brush> _DX2Brushes = new Dictionary<int, SharpDX.Direct2D1.Brush>(256);
 
         private static int getSpotLayer(int rx, int leftX)
         {
@@ -10442,7 +10483,7 @@ namespace Thetis
         {
             if (!_bDX2Setup || _DX2Brushes == null) return;
 
-            foreach (KeyValuePair<Color, SharpDX.Direct2D1.Brush> kvp in _DX2Brushes)
+            foreach (KeyValuePair<int, SharpDX.Direct2D1.Brush> kvp in _DX2Brushes)
             {
                 SharpDX.Direct2D1.Brush b = kvp.Value;
                 Utilities.Dispose(ref b);
@@ -10450,7 +10491,6 @@ namespace Thetis
             }
 
             _DX2Brushes.Clear();
-            _DX2Brushes = null;
         }
         public static int CachedDXBrushes
         {
@@ -10460,23 +10500,29 @@ namespace Thetis
         {
             if (!_bDX2Setup) return null;
 
-            if (_DX2Brushes == null) _DX2Brushes = new Dictionary<Color, SharpDX.Direct2D1.Brush>();
+            int alpha = (replaceAlpha >= 0 && replaceAlpha <= 255) ? replaceAlpha : c.A;
+            int key = Color.FromArgb(alpha, c.R, c.G, c.B).ToArgb();
 
-            Color newC;
-            if (replaceAlpha >= 0 && replaceAlpha <= 255)
-                newC = Color.FromArgb(replaceAlpha, c.R, c.G, c.B); // override the alpha
-            else
-                newC = c;
+            SharpDX.Direct2D1.Brush existingBrush;
+            if (_DX2Brushes.TryGetValue(key, out existingBrush))
+            {
+                return existingBrush;
+            }
 
-            if (_DX2Brushes.ContainsKey(newC)) return _DX2Brushes[newC];
+            SharpDX.Mathematics.Interop.RawColor4 rawColor = new SharpDX.Mathematics.Interop.RawColor4(
+                (float)c.R / 255.0f,
+                (float)c.G / 255.0f,
+                (float)c.B / 255.0f,
+                (float)alpha / 255.0f
+            );
 
-            SolidBrush sb = new SolidBrush(newC);
-            SharpDX.Direct2D1.Brush b = convertBrush(sb);
-            sb.Dispose();
+            SolidColorBrush newBrush = new SharpDX.Direct2D1.SolidColorBrush(
+                _d2dRenderTarget,
+                rawColor
+            );
 
-            _DX2Brushes.Add(newC, b);
-
-            return b;
+            _DX2Brushes.Add(key, newBrush);
+            return newBrush;
         }
 
         private static bool _showTCISpots = false;

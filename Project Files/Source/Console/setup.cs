@@ -86,6 +86,8 @@ namespace Thetis
         {
             InitializeComponent();
 
+            _original_pnlP1_adcs_location = pnlP1_adcs.Location;
+
             Common.DoubleBufferAll(this, true);
 
             MaximumSize = MinimumSize;
@@ -155,7 +157,7 @@ namespace Thetis
             GetTxProfileDefs();
             RefreshCOMPortLists();
 
-            InitAudioTab();
+            InitAudioTab(null, true);
 
             initComboHistoryReadings0();
 
@@ -826,7 +828,7 @@ namespace Thetis
             if (needsRecovering(recoveryList, "radP1DDC6ADC2")) radP1DDC6ADC2.Checked = false;
         }
 
-        public void InitAudioTab(List<string> recoveryList = null)
+        public void InitAudioTab(List<string> recoveryList = null, bool only_rates = false)
         {
             // refactored 2.10.3.7
             int selected_rate1_index = comboAudioSampleRate1.SelectedIndex;
@@ -848,15 +850,23 @@ namespace Thetis
                 comboAudioSampleRateRX2.Items.Add(rate);
             }
 
-            if (selected_rate1_index >= 0 && selected_rate1_index < comboAudioSampleRate1.Items.Count)
-                comboAudioSampleRate1.SelectedIndex = selected_rate1_index;
-            else
-                comboAudioSampleRate1.SelectedIndex = Array.IndexOf(rates, 192000);
+            if (only_rates) return; // exit as we dont want to select anything, this is only used in AfterConstructor
 
-            if (selected_rate2_index >= 0 && selected_rate2_index < comboAudioSampleRateRX2.Items.Count)
-                comboAudioSampleRateRX2.SelectedIndex = selected_rate2_index;
+            int rx1_index;
+            if (selected_rate1_index >= 0 && selected_rate1_index < comboAudioSampleRate1.Items.Count)
+                rx1_index = selected_rate1_index;
             else
-                comboAudioSampleRateRX2.SelectedIndex = Array.IndexOf(rates, 192000);
+                rx1_index = Array.IndexOf(rates, 192000);
+
+            comboAudioSampleRate1.SelectedIndex = rx1_index; // this will always cause a changed event because we removed everything
+
+            int rx2_index;
+            if (selected_rate2_index >= 0 && selected_rate2_index < comboAudioSampleRateRX2.Items.Count)
+                rx2_index = selected_rate2_index;
+            else
+                rx2_index = Array.IndexOf(rates, 192000);
+
+            comboAudioSampleRateRX2.SelectedIndex = rx2_index; // this will always cause a changed event because we removed everything
 
             //if (!comboAudioSampleRate1.Items.Contains(96000))
             //    comboAudioSampleRate1.Items.Add(96000);
@@ -2181,7 +2191,10 @@ namespace Thetis
                 this.txtCollapsedHeight.Text = value.ToString();
             }
         }
-
+        public void SetPriorityClass()
+        {
+            comboGeneralProcessPriority_SelectedIndexChanged(this, EventArgs.Empty);
+        }
         private void ForceAllEvents()
         {
             EventArgs e = EventArgs.Empty;
@@ -2193,7 +2206,6 @@ namespace Thetis
             chkGeneralRXOnly_CheckedChanged(this, e);
             comboGeneralXVTR_SelectedIndexChanged(this, e);
             chkGeneralDisablePTT_CheckedChanged(this, e);
-            comboGeneralProcessPriority_SelectedIndexChanged(this, e);
             chkFullDiscovery_CheckedChanged(this, e);
             btnSetIPAddr_Click(this, e);
             radOrionPTTOff_CheckedChanged(this, e);
@@ -2212,10 +2224,13 @@ namespace Thetis
 
             // Audio Tab
             comboAudioBuffer2_SelectedIndexChanged(this, e);
-            comboAudioSampleRate1_SelectedIndexChanged(this, e);
+            comboAudioBuffer3_SelectedIndexChanged(this, e);
+
+            //comboAudioSampleRate1_SelectedIndexChanged(this, e); // not needed, as done by InitAudioTab() which is part of radRadioProtocolSelect_CheckedChanged called a few lines above
+            //comboAudioSampleRateRX2_SelectedIndexChanged(this, e);
 
             comboAudioSampleRate2_SelectedIndexChanged(this, e);
-            comboAudioSampleRateRX2_SelectedIndexChanged(this, e);
+            comboAudioSampleRate3_SelectedIndexChanged(this, e);
 
             udAudioLatency2_ValueChanged(this, e);
             udAudioLatency2_Out_ValueChanged(this, e);
@@ -2306,6 +2321,8 @@ namespace Thetis
             chkLogVoltsAmps_CheckedChanged(this, e);
 
             // Filter tab
+            udOptMaxFilterWidth_ValueChanged(this, e); //[2.10.3.9]MW0LGE
+            udOptMaxFilterShift_ValueChanged(this, e); //[2.10.3.9]MW0LGE
             udFilterDefaultLowCut_ValueChanged(this, e); //MW0LGE_21d5
             udRX2FilterDefaultLowCut_ValueChanged(this, e);
 
@@ -6647,6 +6664,7 @@ namespace Thetis
 
         private void udOptMaxFilterWidth_ValueChanged(object sender, System.EventArgs e)
         {
+            if (initializing) return;
             console.MaxFilterWidth = (int)udOptMaxFilterWidth.Value;
         }
 
@@ -6668,6 +6686,7 @@ namespace Thetis
 
         private void udOptMaxFilterShift_ValueChanged(object sender, System.EventArgs e)
         {
+            if (initializing) return;
             console.MaxFilterShift = (int)udOptMaxFilterShift.Value;
         }
 
@@ -7747,6 +7766,7 @@ namespace Thetis
             Display.ResetDX2DModeDescription();
 
             udDisplayAVGTime_ValueChanged(this, EventArgs.Empty);
+            udRX2DisplayAVGTime_ValueChanged(this, EventArgs.Empty);
 
             setWaterFallCalculatedDelayText();
         }
@@ -18591,7 +18611,8 @@ namespace Thetis
         private int _oldVAC2InOverflows = 0;
         private int _oldVAC2InUnderflows = 0;
 
-        //[2.10.3.9]MW0LGE this attribue, together with the app.config change 'legacyCorruptedStateExceptionsPolicy' enables the catch of address acceptions inside the try/catch block
+        //[2.10.3.9]MW0LGE this attribue, together with the app.config change 'legacyCorruptedStateExceptionsPolicy' enables
+        //the catch of address acceptions inside the try/catch block which is in an unsafe block
         [HandleProcessCorruptedStateExceptions]
         private void timer_VAC_Monitor_Tick(object sender, EventArgs e)
         {
@@ -18600,7 +18621,7 @@ namespace Thetis
 
             if (!lblVAC1ovfl.Visible && !lblVAC2ovfl.Visible && !lblAdvancedAudioWarning.Visible)
             {
-                // set audio controls not visible, so update slower. We need this as front end will show the overflow/underflow 4box icon if there is an issue
+                // setup audio controls not visible, so update slower. We need this as front end will show the overflow/underflow 4box icon if there is an issue
                 timer_VAC_Monitor.Interval = 100;
                 updateUI = false;
             }
@@ -20838,8 +20859,6 @@ namespace Thetis
             }
         }
 
-        public static RadioProtocol RadioProtocolSelected { get; set; } = RadioProtocol.ETH;
-
         private void btnResetP2ADC_Click(object sender, EventArgs e)
         {
             switch (HardwareSpecific.Model)
@@ -21266,8 +21285,29 @@ namespace Thetis
             console.EnableControlDebug = chkShowControlDebug.Checked;
         }
 
+        private Point _original_pnlP1_adcs_location;
         public void UpdateDDCTab()
         {
+            // if we are connected, use current, else use selected
+            RadioProtocol protocol = NetworkIO.getHaveSync() == 1 ? NetworkIO.CurrentRadioProtocol : NetworkIO.RadioProtocolSelected;
+            switch (protocol)
+            {
+                case RadioProtocol.USB: //p1
+                    pnlP1_adcs.Location = pnlP2_adcs.Location; // move to the same spot
+                    pnlP1_adcs.Visible = true;
+                    pnlP2_adcs.Visible = false;
+                    break;
+                case RadioProtocol.ETH: //p2
+                    pnlP2_adcs.Visible = true;
+                    pnlP1_adcs.Visible = false;
+                    break;
+                default: // auto
+                    pnlP1_adcs.Location = _original_pnlP1_adcs_location;
+                    pnlP1_adcs.Visible = true;
+                    pnlP2_adcs.Visible = true;
+                    break;
+            }
+
             lblRxDDC0.Text = "";
             lblRxDDC1.Text = "";
             lblRxDDC2.Text = "";
@@ -21309,17 +21349,8 @@ namespace Thetis
                     LabelTS l = c as LabelTS;
                     if (l != null)
                     {
-                        if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(rx1.ToString()))
-                        {
-                            l.Text = "RX1";
-                            l.BackColor = SystemColors.ControlDark;
-                        }
-                        else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(rx2.ToString()))
-                        {
-                            l.Text = "RX2";
-                            l.BackColor = SystemColors.ControlDark;
-                        }
-                        else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(sync1.ToString()))
+                        //[2.10.3.9]MW0LGE show the syncs first
+                        if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(sync1.ToString()))
                         {
                             l.Text = "RX1 Sync1";
                             l.BackColor = SystemColors.ControlDark;
@@ -21327,6 +21358,16 @@ namespace Thetis
                         else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(sync2.ToString()))
                         {
                             l.Text = "RX1 Sync2";
+                            l.BackColor = SystemColors.ControlDark;
+                        }
+                        else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(rx1.ToString()))
+                        {
+                            l.Text = "RX1";
+                            l.BackColor = SystemColors.ControlDark;
+                        }
+                        else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(rx2.ToString()))
+                        {
+                            l.Text = "RX2";
                             l.BackColor = SystemColors.ControlDark;
                         }
                         else if (l.Name.StartsWith("lblRxDDC") && l.Name.EndsWith(psrx.ToString()))
@@ -28550,17 +28591,14 @@ namespace Thetis
 
             if (radRadioProtocol1Select.Checked)
             {
-                RadioProtocolSelected = RadioProtocol.USB;
                 NetworkIO.RadioProtocolSelected = RadioProtocol.USB;
             }
             else if (radRadioProtocol2Select.Checked)
             {
-                RadioProtocolSelected = RadioProtocol.ETH;
                 NetworkIO.RadioProtocolSelected = RadioProtocol.ETH;
             }
             else if (radRadioProtocolAutoSelect.Checked)
             {
-                RadioProtocolSelected = RadioProtocol.Auto;
                 NetworkIO.RadioProtocolSelected = RadioProtocol.Auto;
             }
             else
@@ -28569,6 +28607,8 @@ namespace Thetis
                 radRadioProtocolAutoSelect.Checked = true;
                 return;
             }
+
+            UpdateDDCTab();
 
             InitAudioTab();
         }
