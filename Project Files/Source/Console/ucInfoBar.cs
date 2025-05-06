@@ -53,6 +53,8 @@ namespace Thetis
             CFCeq,
             Leveler,
             DisplayPause,
+            Random, // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
+            Dither, // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
             LAST
         }
 
@@ -149,6 +151,10 @@ namespace Thetis
                             return "Fill";
                         case ActionTypes.DisplayPause:
                             return "Pause";
+                        case ActionTypes.Random: // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
+                            return "Rx2A1";
+                        case ActionTypes.Dither: // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
+                            return "Rx2A2";
 
                     }
                     return "?";
@@ -179,6 +185,10 @@ namespace Thetis
                             return "Fill the panadaptor";
                         case ActionTypes.DisplayPause:
                             return "Pause the display";
+                        case ActionTypes.Random: // RX2 Ant.1
+                            return "Activate Antenna 1 on RX2 for Red Pitaya"; // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
+                        case ActionTypes.Dither: // RX2 Ant.2
+                            return "Activate Antenna 2 on RX2 for Red Pitaya"; // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
                     }
                     return "";
                 }

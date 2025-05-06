@@ -46545,10 +46545,10 @@ namespace Thetis
                     SetupForm.ShowSetupTab(Setup.SetupTab.SpotTCI);                    
                     break;
                 case ucInfoBar.ActionTypes.Random: // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
-                    SetupForm.RandomOn = e.ButtonState;
+                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
                     break;
                 case ucInfoBar.ActionTypes.Dither: // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
-                    SetupForm.DitherOn = e.ButtonState;
+                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
                     break;
             }
         }

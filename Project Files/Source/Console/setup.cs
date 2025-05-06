@@ -4832,6 +4832,21 @@ namespace Thetis
             }
         }
 
+        private void chkMercRandom_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
+        {
+            if (initializing) return;
+            int v = chkMercRandom.Checked ? 1 : 0;
+            console.SetupInfoBarButton(ucInfoBar.ActionTypes.Random, chkMercRandom.Checked);
+            NetworkIO.SetADCRandom(v);
+        }
+
+        private void chkMercDither_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
+        {
+            if (initializing) return;
+            int v = chkMercDither.Checked ? 1 : 0;
+            console.SetupInfoBarButton(ucInfoBar.ActionTypes.Dither, chkMercDither.Checked);
+            NetworkIO.SetADCDither(v);
+        }
 
         public bool VOXEnable
         {
@@ -13266,20 +13281,6 @@ namespace Thetis
             panelAlexRXAntControl.Enabled = true;
         }
 
-        private void chkMercDither_CheckedChanged(object sender, System.EventArgs e)
-        {
-            if (initializing) return;
-            int v = chkMercDither.Checked ? 1 : 0;
-            NetworkIO.SetADCDither(v);
-        }
-
-        private void chkMercRandom_CheckedChanged(object sender, System.EventArgs e)
-        {
-            if (initializing) return;
-            int v = chkMercRandom.Checked ? 1 : 0;
-            NetworkIO.SetADCRandom(v);
-        }
-
         private RadioButtonTS[][] _AlexRxAntButtons = null;
         private RadioButtonTS[][] _AlexTxAntButtons = null;
         private CheckBoxTS[][] _AlexRxOnlyAntCheckBoxes = null;
@@ -20773,7 +20774,8 @@ namespace Thetis
             DISPRX2_Tab,
             SpotTCI,
             OPTIONS2_Tab,
-            PA_Tab
+            PA_Tab,
+            FW_Tab // DH1KLM for Yevgeni Red Pitaya
         }
         public void ShowSetupTab(SetupTab eTab)
         {
@@ -22920,6 +22922,16 @@ namespace Thetis
         {
             get { return chkHideFeebackLevel.Checked; }
             set { chkHideFeebackLevel.Checked = value; }
+        }
+        public bool RandomOn // DH1KLM for Yevgeni Red Pitaya
+        {
+            get { return chkMercRandom.Checked; }
+            set { chkMercRandom.Checked = value; }
+        }
+        public bool DitherOn // DH1KLM for Yevgeni Red Pitaya
+        {
+            get { return chkMercDither.Checked; }
+            set { chkMercDither.Checked = value; }
         }
         public void SwapRedBlueChanged()
         {
