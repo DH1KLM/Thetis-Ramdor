@@ -4832,7 +4832,7 @@ namespace Thetis
             }
         }
 
-        private void chkMercRandom_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya
+        private void chkMercRandom_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya Ant. Interface
         {
             if (initializing) return;
             int v = chkMercRandom.Checked ? 1 : 0;
@@ -4840,7 +4840,7 @@ namespace Thetis
             NetworkIO.SetADCRandom(v);
         }
 
-        private void chkMercDither_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya
+        private void chkMercDither_CheckedChanged(object sender, System.EventArgs e) // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya Ant. Interface
         {
             if (initializing) return;
             int v = chkMercDither.Checked ? 1 : 0;
@@ -20775,7 +20775,7 @@ namespace Thetis
             SpotTCI,
             OPTIONS2_Tab,
             PA_Tab,
-            FW_Tab // DH1KLM for Yevgeni Red Pitaya
+            FW_Tab // DH1KLM for Yevgeni Red Pitaya Ant. Interface
         }
         public void ShowSetupTab(SetupTab eTab)
         {
@@ -22923,12 +22923,12 @@ namespace Thetis
             get { return chkHideFeebackLevel.Checked; }
             set { chkHideFeebackLevel.Checked = value; }
         }
-        public bool RandomOn // DH1KLM for Yevgeni Red Pitaya
+        public bool RandomOn // DH1KLM for Yevgeni Red Pitaya Ant. Interface
         {
             get { return chkMercRandom.Checked; }
             set { chkMercRandom.Checked = value; }
         }
-        public bool DitherOn // DH1KLM for Yevgeni Red Pitaya
+        public bool DitherOn // DH1KLM for Yevgeni Red Pitaya Ant. Interface
         {
             get { return chkMercDither.Checked; }
             set { chkMercDither.Checked = value; }
