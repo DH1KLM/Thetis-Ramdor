@@ -164,7 +164,7 @@ namespace Thetis
                         break;
                     case HPSDRModel.REDPITAYA: //DH1KLM
                         NetworkIO.SetRxADC(2);
-                        NetworkIO.SetMKIIBPF(1);
+                        NetworkIO.SetMKIIBPF(0); // DH1KLM: set from 1 to 0 to make it work correctly with ANAN100D/200D HPSDR compatible DIY PA boards
                         cmaster.SetADCSupply(0, 50);
                         NetworkIO.LRAudioSwap(0);
                         HardwareSpecific.Hardware = HPSDRHW.OrionMKII;
