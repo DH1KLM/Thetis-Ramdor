@@ -290,6 +290,9 @@ namespace Thetis
                 case HPSDRModel.REDPITAYA:
                     board_is_expected_for_model = BoardID == HPSDRHW.Hermes || BoardID == HPSDRHW.OrionMKII; // can be these two
                     break;
+                case HPSDRModel.HERMESBRICK: //DH1KLM
+                    board_is_expected_for_model = BoardID == HPSDRHW.Hermes; //DH1KLM can only be Hermes
+                    break;
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:

@@ -72,6 +72,7 @@ namespace Thetis
                 switch (_model)
                 {
                     case HPSDRModel.HERMES:
+                    case HPSDRModel.HERMESBRICK: //DH1KLM
                         NetworkIO.SetRxADC(1);
                         NetworkIO.SetMKIIBPF(0);
                         cmaster.SetADCSupply(0, 33);
@@ -332,6 +333,8 @@ namespace Thetis
                     return HPSDRModel.HERMESLITE;
                 case "RED-PITAYA":
                     return HPSDRModel.REDPITAYA;
+                case "HERMES-BRICK": //DH1KLM
+                    return HPSDRModel.HERMESBRICK;
                 default:
                     return HPSDRModel.HERMES;
             }
@@ -368,6 +371,8 @@ namespace Thetis
                     return "HERMES-LITE";
                 case HPSDRModel.REDPITAYA:
                     return "RED-PITAYA";
+                case HPSDRModel.HERMESBRICK: //DH1KLM
+                    return "HERMES-BRICK";
                 default:
                     return "HERMES";
             }

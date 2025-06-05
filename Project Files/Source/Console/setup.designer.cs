@@ -8671,7 +8671,8 @@
             "ANAN-G2",
             "ANAN-G2-1K",
             "ANVELINA-PRO3",
-            "RED-PITAYA"});
+            "RED-PITAYA",
+            "HERMES-BRICK"});
             this.comboRadioModel.Location = new System.Drawing.Point(6, 19);
             this.comboRadioModel.Name = "comboRadioModel";
             this.comboRadioModel.Size = new System.Drawing.Size(136, 23);

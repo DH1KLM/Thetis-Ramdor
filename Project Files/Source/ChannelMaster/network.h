@@ -446,7 +446,8 @@ enum _HPSDRModel //from enums.cs
 	HPSDRModel_ANAN_G2_1K = 12,
 	HPSDRModel_ANVELINAPRO3 = 13,
 	HPSDRModel_HERMESLITE = 14,
-	HPSDRModel_REDPITAYA = 15
+	HPSDRModel_REDPITAYA = 15,
+	HPSDRModel_HERMESBRICK = 16
 } HPSDRModel;
 
 enum _RadioProtocol

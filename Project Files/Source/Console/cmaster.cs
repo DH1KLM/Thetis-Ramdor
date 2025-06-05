@@ -470,6 +470,7 @@ namespace Thetis
                             case HPSDRModel.HERMES:
                             case HPSDRModel.ANAN10:
                             case HPSDRModel.ANAN100:
+                            case HPSDRModel.HERMESBRICK: //DH1KLM
                                 int[] FOUR_DDC_Function = new int[48]
                                     {
                                     1, 1, 1, 1, 1, 0, 1, 0,     // DDC0,      port 1035, Call 0
@@ -559,6 +560,7 @@ namespace Thetis
                             case HPSDRModel.HERMES:
                             case HPSDRModel.ANAN10:
                             case HPSDRModel.ANAN100:
+                            case HPSDRModel.HERMESBRICK: //DH1KLM
                                 int[] FOUR_DDC_Function = new int[24]
                                     {
                                     1, 1, 1, 1, 1, 1, 1, 1,     // DDC0,      port 1035, Call 0
@@ -682,6 +684,7 @@ namespace Thetis
                             case HPSDRModel.ANAN100:
                             case HPSDRModel.ANAN10E:
                             case HPSDRModel.ANAN100B:
+                            case HPSDRModel.HERMESBRICK: //DH1KLM
                                 int[] HermesE_Function = new int[32]
                                 {
                                     1, 1, 2, 2, 1, 2, 2, 2,     // Rx0, port 1035, Call 0
@@ -759,6 +762,7 @@ namespace Thetis
                             case HPSDRModel.ANAN100:
                             case HPSDRModel.ANAN10E:
                             case HPSDRModel.ANAN100B:
+                            case HPSDRModel.HERMESBRICK: //DH1KLM
                                 int[] HermesE_Function = new int[32]
                                 {
                                     1, 1, 2, 2, 1, 2, 2, 2,     // Rx0, port 1035, Call 0

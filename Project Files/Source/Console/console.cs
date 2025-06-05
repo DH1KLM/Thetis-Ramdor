@@ -7972,6 +7972,7 @@ namespace Thetis
                 case HPSDRModel.HERMES:
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN100:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     P1_rxcount = 4;                     // RX4 used for puresignal feedback
                     nddc = 4;
                     if (!_mox)
@@ -10734,7 +10735,7 @@ namespace Thetis
                     //******Red Pitaya BODGE*******
                     //[2.10.3.9]MW0LGE This is not ideal, but a bodge to get the PedPitaya to TX attenuate correctly
                     //I am not entirely sure why this is needed, perhaps an issue in the RP firmware
-                    if (_mox && m_bAttontx && HardwareSpecific.Model == HPSDRModel.REDPITAYA)
+                    if (_mox && m_bAttontx && HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.HERMESBRICK)
                     {
                         //note: I am usure if the RP would handle rx2 being changed as below, but it is here for completeness
 
@@ -14893,6 +14894,7 @@ namespace Thetis
             switch (HardwareSpecific.Model)
             {
                 case HPSDRModel.HERMES:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     chkDX.Checked = false;
                     chkDX.Visible = false;
                     rx2_preamp_present = false;
@@ -14973,6 +14975,7 @@ namespace Thetis
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
                 case HPSDRModel.REDPITAYA: //DH1KLM
+                case HPSDRModel.HERMESBRICK: //DH1KLM   
                     if (!comboMeterTXMode.Items.Contains("Ref Pwr"))
                         comboMeterTXMode.Items.Insert(1, "Ref Pwr");
                     if (!comboMeterTXMode.Items.Contains("SWR"))
@@ -15506,6 +15509,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.HERMESBRICK:
                     NetworkIO.VFOfreq(0, rx1_dds_freq_mhz, 0);
                     break;
                 default:
@@ -15542,6 +15546,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     NetworkIO.VFOfreq(1, rx2_dds_freq_mhz, 0);
                     break;
                 default:
@@ -28130,6 +28135,7 @@ namespace Thetis
                         case HPSDRModel.ANAN7000D:
                         case HPSDRModel.ANAN8000D:
                         case HPSDRModel.REDPITAYA: //DH1KLM
+                        case HPSDRModel.HERMESBRICK: //DH1KLM
                             cmaster.SetAAudioMixStates((void*)0, 0, RX1 + RX1S + RX2 + MON, RX1 + RX1S + RX2 + MON);
                             cmaster.SetAntiVOXSourceStates(0, RX1 + RX1S + RX2, RX1 + RX1S + RX2);
                             break;
@@ -28144,6 +28150,7 @@ namespace Thetis
                         case HPSDRModel.ANAN10:
                         case HPSDRModel.ANAN100B:
                         case HPSDRModel.ANAN100:
+                        case HPSDRModel.HERMESBRICK: //DH1KLM
                             if (chkPower.Checked)
                             {
                                 if (!_mox)
@@ -41222,6 +41229,7 @@ namespace Thetis
 
                     break;
                 case HPSDRModel.HERMES:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     if (alexpresent)
                     {
                         comboPreamp.Items.AddRange(on_off_preamp_settings);

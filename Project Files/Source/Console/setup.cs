@@ -838,7 +838,8 @@ namespace Thetis
             comboAudioSampleRate1.Items.Clear();
             comboAudioSampleRateRX2.Items.Clear();
 
-            bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.REDPITAYA; //DH1KLM
+            bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.ANAN100 || HardwareSpecific.Model == HPSDRModel.HERMESBRICK; //DH1KLM
+			//bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.HERMESBRICK; //DH1KLM
 
             int[] p1_rates = include_extra_p1_rate ? new int[] { 48000, 96000, 192000, 384000 } : new int[] { 48000, 96000, 192000 };
             int[] p2_rates = { 48000, 96000, 192000, 384000, 768000, 1536000 };
@@ -19956,6 +19957,7 @@ namespace Thetis
             switch (HardwareSpecific.Model)
             {
                 case HPSDRModel.HERMES:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     //Hardware.Model = HPSDRModel.HERMES;
                     //console.SetupForHPSDRModel();
                     chkAlexPresent.Enabled = true;
@@ -20726,6 +20728,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     bADC0 = true;
                     break;
                 default:
@@ -20885,6 +20888,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     radDDC0ADC0.Checked = true;
                     radDDC1ADC0.Checked = true;
                     radDDC2ADC0.Checked = true;
@@ -20914,6 +20918,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.HERMESBRICK: //DH1KLM
                     radP1DDC0ADC0.Checked = true;
                     radP1DDC1ADC0.Checked = true;
                     radP1DDC2ADC0.Checked = true;
@@ -23889,6 +23894,7 @@ namespace Thetis
                         }
                         break;
                     case HPSDRModel.HERMES:
+                    case HPSDRModel.HERMESBRICK:
                         for (int n = (int)Band.B160M; n <= (int)Band.B6M; n++)
                         {
                             Band b = (Band)n;

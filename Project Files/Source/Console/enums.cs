@@ -84,6 +84,7 @@
         ANVELINAPRO3,
         HERMESLITE,     //MI0BOT
         REDPITAYA,      //DH1KLM
+        HERMESBRICK, //DH1KLM
         LAST
     }
 
