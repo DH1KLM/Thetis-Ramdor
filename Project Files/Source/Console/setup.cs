@@ -838,7 +838,7 @@ namespace Thetis
             comboAudioSampleRate1.Items.Clear();
             comboAudioSampleRateRX2.Items.Clear();
 
-            bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.ANAN100 || HardwareSpecific.Model == HPSDRModel.HERMESBRICK; //DH1KLM
+            bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.HERMESBRICK; //DH1KLM
 			//bool include_extra_p1_rate = HardwareSpecific.Model == HPSDRModel.HERMESBRICK; //DH1KLM
 
             int[] p1_rates = include_extra_p1_rate ? new int[] { 48000, 96000, 192000, 384000 } : new int[] { 48000, 96000, 192000 };
