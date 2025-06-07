@@ -30524,6 +30524,8 @@ namespace Thetis
             }
             else
             {
+                _tune_pulse_on = false;
+
                 chkMOX.Checked = false;                                         // we're done
                 await Task.Delay(100);
 
