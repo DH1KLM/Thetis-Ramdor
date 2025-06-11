@@ -165,7 +165,7 @@ namespace Thetis
                         break;
                     case HPSDRModel.REDPITAYA: //DH1KLM
                         NetworkIO.SetRxADC(2);
-                        NetworkIO.SetMKIIBPF(1);
+                        NetworkIO.SetMKIIBPF(0);
                         cmaster.SetADCSupply(0, 50);
                         NetworkIO.LRAudioSwap(0);
                         HardwareSpecific.Hardware = HPSDRHW.OrionMKII;

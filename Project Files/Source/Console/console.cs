@@ -10735,7 +10735,7 @@ namespace Thetis
                     //******Red Pitaya BODGE*******
                     //[2.10.3.9]MW0LGE This is not ideal, but a bodge to get the PedPitaya to TX attenuate correctly
                     //I am not entirely sure why this is needed, perhaps an issue in the RP firmware
-                    if (_mox && m_bAttontx && HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.HERMESBRICK)
+                    if (_mox && m_bAttontx && HardwareSpecific.Model == HPSDRModel.REDPITAYA) // || HardwareSpecific.Model == HPSDRModel.HERMESBRICK)
                     {
                         //note: I am usure if the RP would handle rx2 being changed as below, but it is here for completeness
 
@@ -41240,7 +41240,7 @@ namespace Thetis
                     else
                         comboPreamp.Items.AddRange(anan100d_preamp_settings);
 
-                    break;
+                    break;                
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN10E:
                     comboPreamp.Items.AddRange(anan100d_preamp_settings);
@@ -41252,6 +41252,7 @@ namespace Thetis
                     break;
                 case HPSDRModel.ANAN100D:
                 case HPSDRModel.ANAN200D:
+                case HPSDRModel.REDPITAYA: //DH1KLM
                     if (alexpresent)
                     {
                         comboPreamp.Items.AddRange(on_off_preamp_settings);
@@ -41266,7 +41267,7 @@ namespace Thetis
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
-                case HPSDRModel.REDPITAYA: //DH1KLM
+                //case HPSDRModel.REDPITAYA: //DH1KLM
                     comboPreamp.Items.AddRange(anan100d_preamp_settings);
                     break;
             }

@@ -6293,7 +6293,7 @@ namespace Thetis
                 chkEnableXVTRHF.Visible = false;
             }
 
-            if (HardwareSpecific.Model == HPSDRModel.HERMES ||
+            if (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.HERMESBRICK ||
                (HardwareSpecific.Model == HPSDRModel.HPSDR))
             {
                 tpAlexControl.Text = "Alex";
@@ -6402,7 +6402,7 @@ namespace Thetis
 
             if (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                 HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
-                HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM
+                HardwareSpecific.Model == HPSDRModel.REDPITAYA || HardwareSpecific.Model == HPSDRModel.HERMESBRICK) //DH1KLM
             {
                 if (!tcGeneral.TabPages.Contains(tpApolloControl))
                 {
@@ -19978,7 +19978,7 @@ namespace Thetis
             switch (HardwareSpecific.Model)
             {
                 case HPSDRModel.HERMES:
-                case HPSDRModel.HERMESBRICK: //DH1KLM
+                //case HPSDRModel.HERMESBRICK: //DH1KLM
                     //Hardware.Model = HPSDRModel.HERMES;
                     //console.SetupForHPSDRModel();
                     chkAlexPresent.Enabled = true;
@@ -20695,6 +20695,42 @@ namespace Thetis
                     radDDC6ADC2.Enabled = true;
                     chkAutoATTRx1.Enabled = true;
                     chkAutoATTRx2.Enabled = true;
+                    setupAttRXControls(1);
+                    setupAttRXControls(2);
+                    break;
+                
+                case HPSDRModel.HERMESBRICK: //DH1KLM
+                    //Hardware.Model = HPSDRModel.HERMES;
+                    //console.SetupForHPSDRModel();
+                    chkAlexPresent.Enabled = true;
+                    chkApolloPresent.Enabled = false;
+                    chkApolloPresent.Visible = false;
+                    chkGeneralRXOnly.Visible = true;
+                    chkHermesStepAttenuator.Enabled = true; //[2.10.3.9]MW0LGE re-enabled, not sure why I removed it as double clicking ATT would show S-ATT
+                    udHermesStepAttenuatorData.Enabled = true; //[2.10.3.9]MW0LGE re-enabled, not sure why I removed it as double clicking ATT would show S-ATT
+                    chkRX2StepAtt.Checked = false;
+                    chkRX2StepAtt.Enabled = false;
+                    udHermesStepAttenuatorDataRX2.Enabled = false;
+                    //groupBoxRXOptions.Text = "Hermes Options";
+                    //grpMetisAddr.Text = "Hermes Address";
+                    //grpHermesStepAttenuator.Text = "Hermes Step Attenuator";
+                    chkAutoPACalibrate.Checked = false;
+                    chkAutoPACalibrate.Visible = false;
+                    labelRXAntControl.Text = "  RX1   RX2    XVTR";
+                    RXAntChk1Name = "RX1";
+                    RXAntChk2Name = "RX2";
+                    RXAntChk3Name = "XVTR";
+                    labelATTOnTX.Visible = true;
+                    udATTOnTX.Visible = true;
+                    chkRxOutOnTx.Text = "RX 1 OUT on Tx";
+                    chkEXT1OutOnTx.Text = "RX 2 IN on Tx";
+                    chkEXT2OutOnTx.Text = "RX 1 IN on Tx";
+                    chkEXT2OutOnTx.Visible = true;
+                    groupBoxHPSDRHW.Visible = true;
+                    chkDisableRXOut.Visible = false;
+                    chkBPF2Gnd.Visible = false;
+                    chkAutoATTRx1.Enabled = true;
+                    chkAutoATTRx2.Enabled = false;
                     setupAttRXControls(1);
                     setupAttRXControls(2);
                     break;
