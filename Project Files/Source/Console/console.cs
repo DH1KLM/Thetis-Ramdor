@@ -29514,7 +29514,7 @@ namespace Thetis
 
             if (Audio.MON != oldMON)
             {
-                if (_rx1_dsp_mode == DSPMode.CWL || _rx1_dsp_mode == DSPMode.CWU)
+                if (!_ignore_sidetone_change && (_rx1_dsp_mode == DSPMode.CWL || _rx1_dsp_mode == DSPMode.CWU))
                 {
                     chkCWSidetone.Checked = chkMON.Checked;
                 }
@@ -34341,6 +34341,7 @@ namespace Thetis
             fm,
             digital
         }
+        private bool _ignore_sidetone_change = false; //[2.10.3.10]MW0LGE used in chkMON_CheckedChanged to ignore making changes to cw sidetone as new dsp mode wont have been set yet, fixes #575
         private void SetRX1Mode(DSPMode new_mode)
         {
             if (new_mode == DSPMode.FIRST || new_mode == DSPMode.LAST) return;
@@ -34425,7 +34426,9 @@ namespace Thetis
 
                     if ((chkVFOATX.Checked || !rx2_enabled) && new_mode != DSPMode.CWU && new_mode != DSPMode.CWL)
                     {
+                        _ignore_sidetone_change = true;
                         chkMON.Checked = mon_recall;
+                        _ignore_sidetone_change = false;
                     }
 
                     // turn off APF
@@ -34459,7 +34462,9 @@ namespace Thetis
 
                     if ((chkVFOATX.Checked || !rx2_enabled) && new_mode != DSPMode.CWL && new_mode != DSPMode.CWU)
                     {
+                        _ignore_sidetone_change = true;
                         chkMON.Checked = mon_recall;
+                        _ignore_sidetone_change = false;
                     }
 
                     // turn off APF
@@ -49208,7 +49213,10 @@ namespace Thetis
             {
                 if (e.Button == MouseButtons.Right)
                 {
-                    _highlightedSpot.BrowseQRZ();
+                    if (Common.CtrlKeyDown)
+                        _highlightedSpot.BrowseHamQTH();
+                    else
+                        _highlightedSpot.BrowseQRZ();
                 }
                 else if (_highlightedSpot.Highlight[0])
                 {
