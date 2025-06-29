@@ -60,10 +60,10 @@ namespace Thetis
     public partial class Setup : Form
     {
         // for these callsigns always show cmasio tab, as a perk to the testers from discord
-        private readonly List<string> CMASIO_ALWAYS_SHOW = new List<string>() {    "dl5tt", "ea8djr", "kc1lko", "k1lsb", "k1sr", "k2gx", "k2tc", "kb2uka",
-                                                                                    "ki4tga", "ko6dlv", "kw4ex", "m0cke", "mw0lge", "n6mud", "nc3z", "nj2us",
-                                                                                    "nr0v", "ny8t", "oe3ide", "oz1ct", "sa3atf", "ve2jn", "ve9iou", "vk6ia",
-                                                                                    "w1aex", "w1rs", "w2pa", "w3ub", "w9ez" };
+        private readonly List<string> CMASIO_ALWAYS_SHOW = new List<string>() {  "dl5tt", "ea8djr", "ei7bmb", "kc1lko", "k1lsb", "k1sr", "k2gx", "k2tc", "kb2uka",
+                                                                                 "ki4tga", "ko6dlv", "kw4ex", "m0cke", "mw0lge", "n6mud", "nc3z", "nj2us",
+                                                                                 "nr0v", "ny8t", "oe3ide", "oz1ct", "sa3atf", "ve2jn", "ve9iou", "vk6ia",
+                                                                                 "w1aex", "w1izz", "wr1s", "w2pa", "w3ub", "w9ac", "w9ez" };
         #region Variable Declaration
 
         private Console console;
@@ -200,6 +200,7 @@ namespace Thetis
             "%swr%" + System.Environment.NewLine +
             "%signal_strength%" + System.Environment.NewLine +
             "%avg_signal_strength%" + System.Environment.NewLine +
+            "%signal_max_bin%" + System.Environment.NewLine +
             "%pwr%" + System.Environment.NewLine +
             "%reverse_pwr%" + System.Environment.NewLine +
             "%mic%" + System.Environment.NewLine +
@@ -2750,6 +2751,7 @@ namespace Thetis
             udTCISpotLifetime_ValueChanged(this, EventArgs.Empty);
             chkShowTCISpots_CheckedChanged(this, EventArgs.Empty);
             chkSpotOwnCallAppearance_CheckedChanged(this, EventArgs.Empty);
+            chkFlashNewTCISpots_CheckedChanged(this, EventArgs.Empty);
 
             //MIDI
             chkIgnore14bitMidiMessages_CheckedChanged(this, EventArgs.Empty);
@@ -14179,11 +14181,27 @@ namespace Thetis
 
             if (NetworkIO.getHaveSync() == 1)
             {
-                //MW0LGE_21d
                 if (NetworkIO.CurrentRadioProtocol == RadioProtocol.ETH)
                 {
-                    sProtocolInfo = "Protocol 2 (v" + NetworkIO.ProtocolSupported.ToString("0\\.0") + ")";
-                    sMetisCodeVersion = NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString();
+                    switch (HardwareSpecific.Model)
+                    {
+                        case HPSDRModel.ANAN_G2:
+                        case HPSDRModel.ANAN_G2_1K:
+                            if (NetworkIO.BetaVersion >= 39) // added for p2app v39
+                            {
+                                sMetisCodeVersion = "fpga(v" + NetworkIO.FWCodeVersion.ToString() + ") p2app(v" + NetworkIO.BetaVersion.ToString() + ")";
+                            }
+                            else
+                            {
+                                sMetisCodeVersion = NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString();
+                            }
+                            break;
+                        default:
+                            sMetisCodeVersion = NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString();
+                            break;
+                    }
+
+                    sProtocolInfo = "Protocol 2 (v" + NetworkIO.ProtocolSupported.ToString("0\\.0") + ")";                    
                 }
                 else
                 {
@@ -14206,15 +14224,35 @@ namespace Thetis
         {
             string sRet = "";
 
+            Debug.Print(NetworkIO.FWCodeVersion.ToString());
+            Debug.Print(NetworkIO.BetaVersion.ToString());
+
             if (NetworkIO.getHaveSync() == 1)
             {
                 if (NetworkIO.CurrentRadioProtocol == RadioProtocol.ETH)
                 {
-                    sRet = "FW v" + NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString() + " Protocol 2";
+                    switch(HardwareSpecific.Model)
+                    {
+                        case HPSDRModel.ANAN_G2:
+                        case HPSDRModel.ANAN_G2_1K:
+                            if (NetworkIO.BetaVersion >= 39) // added for p2app v39
+                            {
+                                sRet = "fpga(v" + NetworkIO.FWCodeVersion.ToString() + ") p2app(v" + NetworkIO.BetaVersion.ToString() + ")";
+                            }
+                            else
+                            {
+                                sRet = "FW v" + NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString();
+                            }
+                            break;
+                        default:
+                            sRet = "FW v" + NetworkIO.FWCodeVersion.ToString("0\\.0") + "." + NetworkIO.BetaVersion.ToString();
+                            break;
+                    }
+                    sRet += " Protocol_2";
                 }
                 else
                 {
-                    sRet = "FW v" + NetworkIO.FWCodeVersion.ToString("0\\.0") + " Protocol 1";
+                    sRet = "FW v" + NetworkIO.FWCodeVersion.ToString("0\\.0") + " Protocol_1";
                 }
             }
 
@@ -19514,7 +19552,7 @@ namespace Thetis
         private void chkAccurateFrameTiming_CheckedChanged(object sender, EventArgs e)
         {
             if (initializing) return;
-            console.UseAccurateFramingTiming = chkAccurateFrameTiming.Checked;
+            console.UseAccurateFramingTiming = false;// chkAccurateFrameTiming.Checked; //[2.10.3.9]MW0LGE disabled as primarily for testing
         }
 
         public bool PeakBlobsEnabled
@@ -22802,6 +22840,11 @@ namespace Thetis
             //
             console.SetupInfoBarButton(ucInfoBar.ActionTypes.ShowSpots, chkShowTCISpots.Checked/* || console.SpotForm*/);
         }
+        private void chkFlashNewTCISpots_CheckedChanged(object sender, EventArgs e)
+        {
+            if (initializing) return;
+            Display.FlashNewTCISpots = chkFlashNewTCISpots.Checked;
+        }
         public bool ShowTCISpots
         {
             get { return chkShowTCISpots.Checked; }
@@ -24840,10 +24883,10 @@ namespace Thetis
 
         private void btnRX1PBsnr_Click(object sender, EventArgs e)
         {
-            float snr = console.RXPBsnr(1);
+            double snr = console.RXPBsnr(1);
             if (snr == -999) return;
 
-            float t = (float)nudPBsnrShiftRx1.Value - snr;
+            double t = (double)nudPBsnrShiftRx1.Value - snr;
 
             // limit to 24 for the shift
             if (t < -24) t = -24;
@@ -24854,10 +24897,10 @@ namespace Thetis
 
         private void btnRX2PBsnr_Click(object sender, EventArgs e)
         {
-            float snr = console.RXPBsnr(2);
+            double snr = console.RXPBsnr(2);
             if (snr == -999) return;
 
-            float t = (float)nudPBsnrShiftRx2.Value - snr;
+            double t = (double)nudPBsnrShiftRx2.Value - snr;
 
             // limit to 12 for the shift
             if (t < -24) t = -24;
@@ -25631,7 +25674,7 @@ namespace Thetis
             else if (mt == MeterType.SIGNAL_TEXT)
             {
                 igs.UpdateInterval = (int)nudMeterItemUpdateRate.Value;
-                igs.AttackRatio = (float)nudMeterItemAttackRate.Value;
+                igs.AttackRatio = (float)Math.Round(nudMeterItemAttackRate.Value, 3);
                 igs.DecayRatio = (float)nudMeterItemDecayRate.Value;
                 igs.FadeOnRx = chkMeterItemFadeOnRx.Checked;
                 igs.FadeOnTx = chkMeterItemFadeOnTx.Checked;
@@ -25641,7 +25684,23 @@ namespace Thetis
                 igs.ShowSubMarker = chkMeterItemShowSubIndicator.Checked;
                 igs.PeakValueColour = clrbtnMeterItemPeakValueColour.Color;
                 igs.PeakValue = chkMeterItemPeakValue.Checked;
-                igs.Average = chkMeterItemSignalAverage.Checked;
+                igs.ShowType = chkMeterItemTitle.Checked;
+                igs.TitleColor = clrbtnMeterItemMeterTitle.Color;
+                switch (ucMeterItemSignalType.SignalType)
+                {
+                    case Reading.AVG_SIGNAL_STRENGTH:
+                        igs.Average = true;
+                        igs.MaxBin = false;
+                        break;
+                    case Reading.SIGNAL_MAX_BIN:
+                        igs.Average = false;
+                        igs.MaxBin = true;
+                        break;
+                    default:
+                        igs.Average = false;
+                        igs.MaxBin = false;
+                        break;
+                }
                 igs.HistoryDuration = (int)nudMeterItemHistoryDuration.Value;
                 igs.IgnoreHistoryDuration = (int)nudMeterItemIgnoreHistoryDuration.Value;
             }
@@ -25845,7 +25904,7 @@ namespace Thetis
                 igs.ShowSubMarker = chkMeterItemShowSubIndicator.Checked;
                 igs.Colour = Color.FromArgb(255, clrbtnMeterItemHBackground.Color);
                 igs.UpdateInterval = (int)nudMeterItemUpdateRate.Value;
-                igs.AttackRatio = (float)nudMeterItemAttackRate.Value;
+                igs.AttackRatio = (float)Math.Round(nudMeterItemAttackRate.Value, 3);
                 igs.DecayRatio = (float)nudMeterItemDecayRate.Value;
                 igs.ShowHistory = chkMeterItemHistory.Checked;
                 igs.HistoryColor = Color.FromArgb(tbMeterItemHistoryAlpha.Value, clrbtnMeterItemHistory.Color);
@@ -25877,7 +25936,24 @@ namespace Thetis
                 igs.MaxPower = (float)nudMeterItemsPowerLimit.Value;
                 igs.PowerScaleColour = clrbtnMeterItemPowerScale.Color;
 
-                if (mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE) igs.Average = chkMeterItemSignalAverage.Checked;
+                if (mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE)
+                {
+                    switch (ucMeterItemSignalType.SignalType)
+                    {
+                        case Reading.AVG_SIGNAL_STRENGTH:
+                            igs.Average = true;
+                            igs.MaxBin = false;
+                            break;
+                        case Reading.SIGNAL_MAX_BIN:
+                            igs.Average = false;
+                            igs.MaxBin = true;
+                            break;
+                        default:
+                            igs.Average = false;
+                            igs.MaxBin = false;
+                            break;
+                    }
+                }
                 if (mt == MeterType.ANANMM || mt == MeterType.CROSS) igs.DarkMode = chkMeterItemDarkMode.Checked;
             }
 
@@ -26243,7 +26319,23 @@ namespace Thetis
                 clrbtnMeterItemSubIndicator.Color = igs.SubMarkerColour;
                 clrbtnMeterItemPeakValueColour.Color = igs.PeakValueColour;
                 chkMeterItemPeakValue.Checked = igs.PeakValue;
-                chkMeterItemSignalAverage.Checked = igs.Average;
+                chkMeterItemTitle.Checked = igs.ShowType;
+                clrbtnMeterItemMeterTitle.Color = igs.TitleColor;
+                if (igs.MaxBin)
+                {
+                    ucMeterItemSignalType.SignalType = Reading.SIGNAL_MAX_BIN;
+                }
+                else
+                {
+                    if (igs.Average)
+                    {
+                        ucMeterItemSignalType.SignalType = Reading.AVG_SIGNAL_STRENGTH;
+                    }
+                    else
+                    {
+                        ucMeterItemSignalType.SignalType = Reading.SIGNAL_STRENGTH;
+                    }
+                }
                 chkMeterItemShowSubIndicator.Checked = igs.ShowSubMarker;
 
                 nudMeterItemHistoryDuration.Value = igs.HistoryDuration < nudMeterItemHistoryDuration.Minimum ? nudMeterItemHistoryDuration.Minimum : igs.HistoryDuration;
@@ -26261,6 +26353,8 @@ namespace Thetis
                 lblMMIndicatorSub.Enabled = true;
                 clrbtnMeterItemSubIndicator.Enabled = true;
                 chkMeterItemShowSubIndicator.Enabled = true;
+                chkMeterItemTitle.Enabled = true;
+                clrbtnMeterItemMeterTitle.Enabled = true;
 
                 lblMMBackground.Enabled = true;
                 clrbtnMeterItemHBackground.Enabled = true;
@@ -26272,8 +26366,6 @@ namespace Thetis
                 lblMMsegSolHigh.Enabled = false;
                 clrbtnMeterItemSegmentedSolidColourLow.Enabled = false;
                 clrbtnMeterItemSegmentedSolidColourHigh.Enabled = false;
-                chkMeterItemTitle.Enabled = false;
-                clrbtnMeterItemMeterTitle.Enabled = false;
                 chkMeterItemPeakValue.Enabled = true;
                 updatePeakValueControls();
                 lblMMEyeSize.Enabled = false;
@@ -26289,7 +26381,7 @@ namespace Thetis
                 clrbtnMeterItemHistory.Enabled = false;
                 chkMeterItemPeakHold.Enabled = false;
                 clrbtnMeterItemPeakHold.Enabled = false;
-                chkMeterItemSignalAverage.Enabled = true;
+                ucMeterItemSignalType.Enabled = true;
                 chkMeterItemDarkMode.Enabled = false;
                 lblMMPowerLimit.Enabled = false;
                 nudMeterItemsPowerLimit.Enabled = false;
@@ -26602,8 +26694,25 @@ namespace Thetis
                 chkMeterItemShowSubIndicator.Enabled = !bEnable && igs.SubIndicators;
                 //
 
-                chkMeterItemSignalAverage.Enabled = mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE;
-                if (mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE) chkMeterItemSignalAverage.Checked = igs.Average;
+                ucMeterItemSignalType.Enabled = mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE;
+                if (mt == MeterType.ANANMM || mt == MeterType.MAGIC_EYE)
+                {
+                    if (igs.MaxBin)
+                    {
+                        ucMeterItemSignalType.SignalType = Reading.SIGNAL_MAX_BIN;
+                    }
+                    else
+                    {
+                        if (igs.Average)
+                        {
+                            ucMeterItemSignalType.SignalType = Reading.AVG_SIGNAL_STRENGTH;
+                        }
+                        else
+                        {
+                            ucMeterItemSignalType.SignalType = Reading.SIGNAL_STRENGTH;
+                        }
+                    }
+                }
                 if (mt == MeterType.ANANMM || mt == MeterType.CROSS) chkMeterItemDarkMode.Checked = igs.DarkMode;
                 //
             }
@@ -26758,11 +26867,6 @@ namespace Thetis
         }
 
         private void nudMeterItemEyeScale_ValueChanged(object sender, EventArgs e)
-        {
-            updateMeterType();
-        }
-
-        private void chkMeterItemSignalAverage_CheckedChanged(object sender, EventArgs e)
         {
             updateMeterType();
         }
@@ -27154,7 +27258,7 @@ namespace Thetis
                 mt == MeterType.SPACER || mt == MeterType.TEXT_OVERLAY ||
                 mt == MeterType.LED || mt == MeterType.ROTATOR || mt == MeterType.HISTORY ||
                 mt == MeterType.VFO_DISPLAY || mt == MeterType.CLOCK ||
-                mt == MeterType.FILTER_DISPLAY
+                mt == MeterType.FILTER_DISPLAY || _itemGroupSettingsMeterType == MeterType.CUSTOM_METER_BAR
                 )
             {
                 bPaste = _itemGroupSettingsMeterType == mt;
@@ -27164,7 +27268,7 @@ namespace Thetis
                 _itemGroupSettingsMeterType == MeterType.SPACER || _itemGroupSettingsMeterType == MeterType.TEXT_OVERLAY ||
                 _itemGroupSettingsMeterType == MeterType.LED || mt == MeterType.ROTATOR || mt == MeterType.HISTORY ||
                 _itemGroupSettingsMeterType == MeterType.VFO_DISPLAY || _itemGroupSettingsMeterType == MeterType.CLOCK ||
-                _itemGroupSettingsMeterType == MeterType.FILTER_DISPLAY
+                _itemGroupSettingsMeterType == MeterType.FILTER_DISPLAY || _itemGroupSettingsMeterType == MeterType.CUSTOM_METER_BAR
                 )
             {
                 bPaste = mt == _itemGroupSettingsMeterType;
@@ -32363,9 +32467,10 @@ namespace Thetis
             List<clsComboHistoryItem> items = new List<clsComboHistoryItem>();
             comboHistory_reading_0.Items.Clear();
             comboHistory_reading_1.Items.Clear();
-            for (int i = (int)Reading.SIGNAL_STRENGTH; i <= (int)Reading.SWR; i++)
+            for (int i = (int)Reading.SIGNAL_STRENGTH; i <= (int)Reading.SIGNAL_MAX_BIN; i++)
             {
                 if (i == 22 || i == 23) continue; // skip these as not used
+                if (i >= 29 && i <= 71) continue; // skip
 
                 Reading r = (Reading)i;
                 clsComboHistoryItem chi = new clsComboHistoryItem(r);
@@ -34518,6 +34623,11 @@ namespace Thetis
             console.radio.GetDSPTX(0).TXPostGenTTPulseFreq = (int)nudPulsed_TwoTone_window.Value;
             console.radio.GetDSPTX(0).TXPostGenTTPulseDutyCycle = (float)(nudPulsed_TwoTone_percent.Value) / 100f;
             console.radio.GetDSPTX(0).TXPostGenTTPulseTransition = (float)(nudPulsed_TwoTone_ramp.Value) / 1000f;
+        }
+
+        private void ucMeterItemSignalType_SignalTypeChanged(object sender, ucSignalSelect.SignalTypeChangedEventArgs e)
+        {
+            updateMeterType();
         }
     }
 
