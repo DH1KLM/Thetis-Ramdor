@@ -2067,9 +2067,7 @@ namespace Thetis
                 infoBar.UpdateButtonState(ucInfoBar.ActionTypes.CFCeq, SetupForm.CFCPEQEnabled, false);
                 infoBar.UpdateButtonState(ucInfoBar.ActionTypes.ShowSpots, SetupForm.ShowTCISpots /*| other spots*/, false);
                 infoBar.UpdateButtonState(ucInfoBar.ActionTypes.DisplayFill, SetupForm.DisplayPanFill, false);
-                infoBar.UpdateButtonState(ucInfoBar.ActionTypes.Random, SetupForm.RandomOn, false); // DH1KLM for Yevgeni Red Pitaya Ant. Interface
-                infoBar.UpdateButtonState(ucInfoBar.ActionTypes.Dither, SetupForm.DitherOn, false); // DH1KLM for Yevgeni Red Pitaya Ant. Interface
-                infoBar.UpdateButtonState(ucInfoBar.ActionTypes.DisplayPause, Display.PausedDisplay, true); // <- last one needs to be true ****** NOTE *************                
+                infoBar.UpdateButtonState(ucInfoBar.ActionTypes.DisplayPause, Display.PausedDisplay, true); // <- last one needs to be true ****** NOTE *************
             }
 
             // tooltips
@@ -24447,7 +24445,7 @@ namespace Thetis
                             "RX2DisplayCalOffset : " + Display.RX2DisplayCalOffset.ToString() + Environment.NewLine +
                             "TXDisplayCalOffset : " + Display.TXDisplayCalOffset.ToString() + Environment.NewLine +
                             "RX1MeterCalOffset : " + rx1_meter_cal_offset.ToString() + Environment.NewLine +
-                            "RX2MeterCalOffset : " + rx2_meter_cal_offset.ToString() + Environment.NewLine +                                                       
+                            "RX2MeterCalOffset : " + rx2_meter_cal_offset.ToString() + Environment.NewLine +
                             "mon_recall : " + mon_recall.ToString();
                     }
                     #endregion
@@ -47032,12 +47030,6 @@ namespace Thetis
                 case ucInfoBar.ActionTypes.DisplayPause:
                     Display.PausedDisplay = !Display.PausedDisplay;
                     break;
-                case ucInfoBar.ActionTypes.Random: // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya Ant. Interface 
-                    SetupForm.RandomOn = e.ButtonState;
-                    break;
-                case ucInfoBar.ActionTypes.Dither: // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya Ant. Interface
-                    SetupForm.DitherOn = e.ButtonState;
-                    break;
             }
         }
 
@@ -47080,12 +47072,6 @@ namespace Thetis
                     break;
                 case ucInfoBar.ActionTypes.ShowSpots:
                     SetupForm.ShowSetupTab(Setup.SetupTab.SpotTCI);                    
-                    break;
-                case ucInfoBar.ActionTypes.Random: // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya Ant. Interface
-                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
-                    break;
-                case ucInfoBar.ActionTypes.Dither: // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya Ant. Interface
-                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
                     break;
             }
         }
