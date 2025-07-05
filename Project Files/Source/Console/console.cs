@@ -16320,9 +16320,9 @@ namespace Thetis
             get { return cat_nr_status; }
             set
             {
-                value = value == 0 ? 0 : 1; // sanity
-                selectNR(1, false, value);
-                selectNR(1, true, value);
+                value = value == 0 ? 0 : 1; // sanity + nr type 1=nr
+                SelectNR(1, false, value);
+                SelectNR(1, true, value);
 
                 //if (value == 0)
                 //{
@@ -16341,9 +16341,9 @@ namespace Thetis
             get { return cat_nr2_status; }
             set
             {
-                value = value == 0 ? 0 : 2; // sanity
-                selectNR(1, false, value);
-                selectNR(1, true, value);
+                value = value == 0 ? 0 : 2; // sanity + nr type 2=nr2
+                SelectNR(1, false, value);
+                SelectNR(1, true, value);
 
                 //if (value == 0)
                 //{
@@ -16355,6 +16355,28 @@ namespace Thetis
                 //}
             }
         }
+        private int _cat_nr3_status = 0;
+        public int CATNR3
+        {
+            get { return _cat_nr3_status; }
+            set
+            {
+                value = value == 0 ? 0 : 3; // sanity + nr type 3=nr3
+                SelectNR(1, false, value);
+                SelectNR(1, true, value);
+            }
+        }
+        private int _cat_nr4_status = 0;
+        public int CATNR4
+        {
+            get { return _cat_nr4_status; }
+            set
+            {
+                value = value == 0 ? 0 : 4; // sanity + nr type 4=nr4
+                SelectNR(1, false, value);
+                SelectNR(1, true, value);
+            }
+        }
 
         private int cat_rx2_nr_status = 0;
         public int CATRX2NR
@@ -16363,8 +16385,8 @@ namespace Thetis
             set
             {
                 value = value == 0 ? 0 : 1; // sanity
-                selectNR(2, false, value);
-                selectNR(2, true, value);
+                SelectNR(2, false, value);
+                SelectNR(2, true, value);
 
                 //if (value == 0)
                 //{
@@ -16384,8 +16406,8 @@ namespace Thetis
             set
             {
                 value = value == 0 ? 0 : 2; // sanity
-                selectNR(2, false, value);
-                selectNR(2, true, value);
+                SelectNR(2, false, value);
+                SelectNR(2, true, value);
 
                 //if (value == 0)
                 //{
@@ -27085,13 +27107,13 @@ namespace Thetis
                         //chkNR.Checked = !chkNR.Checked;
                         if (_nr_selected[0] > 0)
                         {
-                            selectNR(1, false, 0);
-                            selectNR(1, true, 0);
+                            SelectNR(1, false, 0);
+                            SelectNR(1, true, 0);
                         }
                         else
                         {
-                            selectNR(1, false, 1);
-                            selectNR(1, true, 1);
+                            SelectNR(1, false, 1);
+                            SelectNR(1, true, 1);
                         }
                         break;
                     case Keys.C:
@@ -34808,8 +34830,8 @@ namespace Thetis
                     //    chkNR.CheckState = CheckState.Unchecked;
                     if (_nr_selected[0] > 0)
                     {
-                        selectNR(1, false, 0);
-                        selectNR(1, true, 0);
+                        SelectNR(1, false, 0);
+                        SelectNR(1, true, 0);
                     }
 
                     handleSqlFM(1, true);
@@ -43118,8 +43140,8 @@ namespace Thetis
                     //else if (chkNR.CheckState == CheckState.Checked) chkNR.CheckState = CheckState.Unchecked;
                     {
                         bool is_on = _nr_selected[0] == 1;
-                        selectNR(1, false, is_on ? 0 : 1);
-                        selectNR(1, true, is_on ? 0 : 1);
+                        SelectNR(1, false, is_on ? 0 : 1);
+                        SelectNR(1, true, is_on ? 0 : 1);
                     }
                     break;
                 case "NR2":
@@ -43127,8 +43149,8 @@ namespace Thetis
                     //else if (chkNR.CheckState == CheckState.Indeterminate) chkNR.CheckState = CheckState.Unchecked;
                     {
                         bool is_on = _nr_selected[0] == 2;
-                        selectNR(1, false, is_on ? 0 : 2);
-                        selectNR(1, true, is_on ? 0 : 2);
+                        SelectNR(1, false, is_on ? 0 : 2);
+                        SelectNR(1, true, is_on ? 0 : 2);
                     }
                     break;
                 case "ANF":
@@ -43755,8 +43777,8 @@ namespace Thetis
                         chkRXEQ.Checked = false;
                         chkANF.Checked = false;
                         //chkNR.CheckState = CheckState.Unchecked;
-                        selectNR(rx, false, 0);
-                        selectNR(rx, true, 0);
+                        SelectNR(rx, false, 0);
+                        SelectNR(rx, true, 0);
                         SetupForm.CESSB = false;
                         CFCEnabled = false;
                         SetupForm.PhaseRotEnabled = false;
@@ -43785,8 +43807,8 @@ namespace Thetis
                         }
                         chkANF.Checked = rx1dm.ANF; // these two not stored in a TX profile
                         //chkNR.CheckState = rx1dm.NR;
-                        selectNR(rx, false, rx1dm.NR);
-                        selectNR(rx, true, rx1dm.NR);
+                        SelectNR(rx, false, rx1dm.NR);
+                        SelectNR(rx, true, rx1dm.NR);
                         if (!bFromTXProfile)
                         {
                             SetupForm.CESSB = rx1dm.CESSB;
@@ -43818,8 +43840,8 @@ namespace Thetis
                     case DigiMode.DigiModeSettingState.dmssRecall:
                         chkRX2ANF.Checked = rx2dm.ANF;
                         //chkRX2NR.CheckState = rx2dm.NR;
-                        selectNR(2, false, rx2dm.NR);
-                        selectNR(2, true, rx2dm.NR);
+                        SelectNR(2, false, rx2dm.NR);
+                        SelectNR(2, true, rx2dm.NR);
                         break;
                 }
             }
@@ -43886,12 +43908,17 @@ namespace Thetis
             _nr_selected[rx - 1] += 1;
             if (_nr_selected[rx - 1] > 4) _nr_selected[rx - 1] = 0;
         }
-        private void selectNR(int rx, bool sub, int nr)
+        public void SelectNR(int rx, bool sub, int nr)
         {
             if (rx < 1 || rx > 2) return;
             if (nr < 0 || nr > 4) return;
             _nr_selected[rx - 1] = nr;
             setupNR(rx, sub);
+        }
+        public int GetSelectedNR(int rx)
+        {
+            if (rx < 1 || rx > 2) return -1;
+            return _nr_selected[rx - 1];
         }
         private void setupNR(int rx, bool sub)
         {
@@ -48949,10 +48976,12 @@ namespace Thetis
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
         [DllImport("user32.dll")]
         private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool PostThreadMessage(uint idThread, uint Msg, IntPtr wParam, IntPtr lParam);
 
         private const int WM_CLOSE = 0x0010;
         private const int WM_QUIT = 0x0012;
-        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);        
 
         private void autoLaunchTryToClose()
         {
@@ -48960,6 +48989,8 @@ namespace Thetis
             if (!SetupForm.AutoLaunchTryToClose) return;
 
             //commented if(!p.HasExited) as not sure state is 100% accurate. Try/catch will handle any issue
+
+            // try wm_close to main window handle of process
             foreach (Process p in _started_processes)
             {
                 try
@@ -48971,6 +49002,8 @@ namespace Thetis
                 }
             }
             if (_started_processes.Count > 0) Thread.Sleep(50);
+
+            // try wm_quit to main window handle of process. Technically this is not what should be done with a WM_QUIT, but will leave it anyway
             foreach (Process p in _started_processes)
             {
                 try
@@ -48983,6 +49016,21 @@ namespace Thetis
             }
             if (_started_processes.Count > 0) Thread.Sleep(50);
 
+            // try wm_quit to main thread of a process
+            foreach (Process p in _started_processes)
+            {
+                try
+                {
+                    uint threadId = (uint)p.Threads[0].Id;
+                    PostThreadMessage(threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+                }
+                catch
+                {
+                }
+            }
+            if (_started_processes.Count > 0) Thread.Sleep(50);
+
+            // try wm_close to any windows owned by process
             foreach (Process p in _started_processes)
             {
                 try
@@ -49002,6 +49050,8 @@ namespace Thetis
                 }
             }
             if (_started_processes.Count > 0) Thread.Sleep(50);
+
+            // try wm_quit to any windows owned by process
             foreach (Process p in _started_processes)
             {
                 try
@@ -49021,6 +49071,8 @@ namespace Thetis
                 }
             }
             if (_started_processes.Count > 0) Thread.Sleep(50);
+
+            // try process close main window
             foreach (Process p in _started_processes)
             {
                 try
@@ -49032,6 +49084,8 @@ namespace Thetis
                 }
             }
             if (_started_processes.Count > 0) Thread.Sleep(50);
+
+            // try to directly close the process, and clean up
             foreach (Process p in _started_processes)
             {
                 try
@@ -51832,6 +51886,12 @@ namespace Thetis
             incrementNR(2);
             setupNR(2, false);
             setupNR(2, true);
+        }
+
+        private void nudRNnoiseGainTest_ValueChanged(object sender, EventArgs e)
+        {
+            radio.GetDSPRX(0, 0).RXARNNRgain = (float)nudRNnoiseGainTest.Value * 10000;
+            radio.GetDSPRX(0, 1).RXARNNRgain = (float)nudRNnoiseGainTest.Value * 10000;
         }
         //
     }

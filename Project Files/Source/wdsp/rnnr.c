@@ -57,6 +57,7 @@ void SetRXARNNRRun (int channel, int run)
 
 void setSize_rnnr(RNNR a, int size)
 {
+    _aligned_free(a->output_buffer);
     a->buffer_size = size;
     a->output_buffer = (float*)malloc0(a->buffer_size * sizeof(float));
 }
@@ -78,7 +79,7 @@ RNNR create_rnnr (int run, int position, double *in, double *out)
     a->in = in;
     a->out = out;
     a->buffer_size = 64;
-    a->gain = 500000.0;
+    a->gain = 5000000.0;// 500000.0; //large gain factor, seems to change with model
 
     a->input_queue_head = NULL;
     a->input_queue_tail = NULL;
@@ -88,6 +89,7 @@ RNNR create_rnnr (int run, int position, double *in, double *out)
     a->output_queue_tail = NULL;
     a->output_queue_count = 0;
 
+    a->output_buffer = (float*)malloc0(a->buffer_size * sizeof(float));
     a->to_process_buffer = (float*)malloc0(a->frame_size * sizeof(float));
     a->processed_output_buffer = (float*)malloc0(a->frame_size * sizeof(float));
 
@@ -191,7 +193,7 @@ void xrnnr (RNNR a, int pos)
         if (a->output_queue_count >= bs)
         {
             output_dequeue_bulk(a, a->output_buffer, bs);
-            for (int i = 0; i < a->buffer_size; i++)
+            for (int i = 0; i < bs; i++)
             {
                 out[2 * i] = (double)a->output_buffer[i];
                 out[2 * i + 1] = 0;
@@ -243,4 +245,14 @@ void destroy_rnnr (RNNR a)
     _aligned_free(a->processed_output_buffer);
     _aligned_free(a->output_buffer);
     _aligned_free (a);
+}
+
+PORT
+void SetRXARNNRgain(int channel, float gain)
+{
+    if (gain <= 0) return;
+
+    EnterCriticalSection(&ch[channel].csDSP);
+    rxa[channel].rnnr.p->gain = gain;
+    LeaveCriticalSection(&ch[channel].csDSP);
 }
