@@ -582,6 +582,11 @@ namespace Thetis
         // ======================================================
         public Console(string[] args)
         {
+            ////Debug.Print(Common.GenerateKeyBase64());
+            //byte[] key = Convert.FromBase64String("LGu4GhrkboTvwiNTca2I9e3Z/3Jl3fZ6+qa+eMB/rGI=");
+            //string ss = Common.EncryptAndCombineIvToBase64("this is a test", key);
+            //Debug.Print(Common.DecryptFromCombinedIvBase64(ss, key));
+
             //run high, until we have completed, then set to configured value, see near end of function
             Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
             ThreadPriority original_thread_priority = Thread.CurrentThread.Priority;
@@ -1407,9 +1412,9 @@ namespace Thetis
                 Application.Restart();
             }
         }
-        static bool a()
+        private static bool a()
         {
-            int[] x = new int[] { 0xF1, 0x2E, 0x03, 0xAB, 0xD1, 0x52, 0x45, 0x9D };
+            int[] x = new int[] { 0x09, 0x4D, 0x28, 0x44, 0x23, 0x56, 0x45, 0x9D };
             byte[] b = new byte[8];
             for (int i = 0; i < 8; i++) b[i] = (byte)(x[i] ^ (0xAA - i * 3));
             long t = BitConverter.ToInt64(b, 0);
@@ -13691,10 +13696,13 @@ namespace Thetis
         }
 
         //MW0LGE_21k9
-        public void SetupDisplayEngine(bool resizeN1MM = true)
+        public void SetupDisplayEngine(int decimation, bool resizeN1MM = true)
         {
+            int oldDecimation = Display.Decimation;
+
             _pause_DisplayThread = true;
 
+            Display.Decimation = decimation;
             Display.Target = pnlDisplay;
 
             if (resizeN1MM)
@@ -13713,6 +13721,8 @@ namespace Thetis
             if (rx2_enabled) comboRX2DisplayMode_SelectedIndexChanged(this, EventArgs.Empty);
 
             _pause_DisplayThread = false;
+
+            if (oldDecimation != Display.Decimation) DisplayDecimationChangedHanders?.Invoke(oldDecimation, Display.Decimation);
         }
 
         private bool diversity_rx_ref;
@@ -45833,6 +45843,8 @@ namespace Thetis
         public delegate void XvtrGainOffsetChanged(int rx, float oldCal, float newCal);
         public delegate void Rx6mOffsetChanged(int rx, float oldCal, float newCal);
 
+        public delegate void DisplayDecimationChanged(int old_decimation, int new_decimation);
+
         public BandPreChange BandPreChangeHandlers; // when someone clicks a band button, before a change is made
         public BandNoChange BandNoChangeHandlers;
         public BandChanged BandChangeHandlers;
@@ -45944,6 +45956,8 @@ namespace Thetis
         public DisplayOffsetChanged DisplayOffsetChangedHandlers;
         public XvtrGainOffsetChanged XvtrGainOffsetChangedHandlers;
         public Rx6mOffsetChanged Rx6mOffsetChangedHandlers;
+
+        public DisplayDecimationChanged DisplayDecimationChangedHanders;
 
         private bool m_bIgnoreFrequencyDupes = false;               // if an update is to be made, but the frequency is already in the filter, ignore it
         private bool m_bHideBandstackWindowOnSelect = false;        // hide the window if an entry is selected
@@ -51979,6 +51993,7 @@ namespace Thetis
 
         private string _radio_server_ip = "127.0.0.1";
         private int _radio_server_port = 14000;
+        private string _radio_server_password = "";
         public string RadioServerIP
         {
             get { return _radio_server_ip; }
@@ -51989,6 +52004,11 @@ namespace Thetis
             get { return _radio_server_port; }
             set { _radio_server_port = value; }
         }
+        public string RadioServerPassword
+        {
+            get { return _radio_server_password; }
+            set { _radio_server_password = value; }
+        }
         public void SetupSpectralServer(bool on)
         {
             if(_radio_server != null)
@@ -51998,7 +52018,7 @@ namespace Thetis
             }
             if (on)
             {
-                _radio_server = new clsRadioServer(this, _radio_server_ip, _radio_server_port);
+                _radio_server = new clsRadioServer(this, _radio_server_ip, _radio_server_port, _radio_server_password);
                 if (!IsSetupFormNull) SetupForm.UpdateSpectralServerGradients();
                 _radio_server.StartListening();
             }
