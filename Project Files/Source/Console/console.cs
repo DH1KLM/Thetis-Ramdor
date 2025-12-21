@@ -47910,6 +47910,12 @@ namespace Thetis
                 case ucInfoBar.ActionTypes.ShowSpots:
                     SetupForm.ShowSetupTab(Setup.SetupTab.SpotTCI);                    
                     break;
+                case ucInfoBar.ActionTypes.Random: // RX2 Ant.1 DH1KLM for Yevgeni Red Pitaya Ant. Interface
+                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
+                    break;
+                case ucInfoBar.ActionTypes.Dither: // RX2 Ant.2 DH1KLM for Yevgeni Red Pitaya Ant. Interface
+                    SetupForm.ShowSetupTab(Setup.SetupTab.FW_Tab);
+                    break;
             }
         }
         public bool HideFeebackLevel
