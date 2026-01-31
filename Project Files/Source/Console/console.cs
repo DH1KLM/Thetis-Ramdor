@@ -3180,10 +3180,14 @@ namespace Thetis
             }
             a.Add("console_state/" + ((int)this.WindowState).ToString()); //MW0LGE_21 window state
 
-            if (SetupForm.WindowState != FormWindowState.Minimized)//[2.10.3.6]MW0LGE prevent garbage being stored if shutdown when minimsed
+            if (!IsSetupFormNull) // very rare case where setup form is null on exit, and would cause another instance
+                                  // why null on exit? not sure yet. TODO
             {
-                a.Add("setup_top/" + SetupForm.Top.ToString());
-                a.Add("setup_left/" + SetupForm.Left.ToString());
+                if (SetupForm.WindowState != FormWindowState.Minimized)//[2.10.3.6]MW0LGE prevent garbage being stored if shutdown when minimsed
+                {
+                    a.Add("setup_top/" + SetupForm.Top.ToString());
+                    a.Add("setup_left/" + SetupForm.Left.ToString());
+                }
             }
 
             a.Add("IncludeWindowBorders/" + m_bIncludeWindowBorders);   // used in status bar resize form calcs
@@ -3207,8 +3211,8 @@ namespace Thetis
             a.Add("Version/" + this.Text);		// save the current version
             a.Add("VersionNumber/" + ver_num);      // Thetis version number in a.b.c format
             a.Add("BandTextID/" + current_region);  // TURF Region
-            a.Add("Metis_IP_address/" + NetworkIO.HpSdrHwIpAddress.ToString(nfi));
-            a.Add("EthernetHostIPAddress/" + NetworkIO.EthernetHostIPAddress.ToString(nfi));
+            //a.Add("Metis_IP_address/" + NetworkIO.HpSdrHwIpAddress.ToString(nfi));
+            //a.Add("EthernetHostIPAddress/" + NetworkIO.EthernetHostIPAddress.ToString(nfi));
 
             a.Add("PruneBackups/" + DBMan.PruneBackups.ToString());
 
@@ -3979,12 +3983,12 @@ namespace Thetis
                     case "rx2_display_grid_min_xvtr":
                         rx2_display_grid_min_xvtr = float.Parse(val);
                         break;
-                    case "Metis_IP_address":
-                        NetworkIO.HpSdrHwIpAddress = val;
-                        break;
-                    case "EthernetHostIPAddress":
-                        NetworkIO.EthernetHostIPAddress = val;
-                        break;
+                    //case "Metis_IP_address":
+                    //    NetworkIO.HpSdrHwIpAddress = val;
+                    //    break;
+                    //case "EthernetHostIPAddress":
+                    //    NetworkIO.EthernetHostIPAddress = val;
+                    //    break;
                     case "infoBar_flip": //MW0LGE_21k9rc4
                         infoBar.CurrentFlip = int.Parse(val);
                         break;
@@ -13941,7 +13945,7 @@ namespace Thetis
         public void SetupForHPSDRModel()
         {
             chkFullDuplex.Visible = false;
-            NetworkIO.fwVersionsChecked = false;
+            NetworkIO.FWVersionsChecked = false;
 
             switch (HardwareSpecific.Model)
             {
@@ -18264,16 +18268,6 @@ namespace Thetis
                 }
 
                 if (oldValue != alexpresent) AlexPresentChangedHandlers?.Invoke(oldValue, alexpresent); //MW0LGE_[2.9.0.7]
-            }
-        }
-
-        private string hpsdr_network_ip_addr;
-        public string HPSDRNetworkIPAddr
-        {
-            get { return hpsdr_network_ip_addr; }
-            set
-            {
-                hpsdr_network_ip_addr = value;
             }
         }
 
@@ -26515,7 +26509,8 @@ namespace Thetis
 
                 timer_peak_text.Enabled = false;
 
-                NetworkIO.StopAudio();
+                //NetworkIO.StopAudio();
+                Audio.Stop();
 
                 if (vac_enabled)
                 {
@@ -45073,8 +45068,9 @@ namespace Thetis
         }
         private void btnDisplayZTB_Click(object sender, EventArgs e)
         {
-            MouseButtons mb = ((MouseEventArgs)e).Button;
-            ZoomToBand(mb == MouseButtons.Right);
+            MouseEventArgs me = e as MouseEventArgs;
+            bool is_right = me != null && me.Button == MouseButtons.Right;
+            ZoomToBand(is_right);
         }
 
         private void setupZTBButton()
@@ -47237,7 +47233,7 @@ namespace Thetis
                             break;
                     }                    
                     sProto = "2";
-                    sSupportedProtocol = NetworkIO.ProtocolSupported.ToString("0\\.0");
+                    sSupportedProtocol = NetworkIO.Protocol2VersionSupported.ToString("0\\.0");
                 }
                 else
                 {
