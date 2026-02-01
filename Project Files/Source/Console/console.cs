@@ -16028,6 +16028,7 @@ namespace Thetis
 
         // property set when An Andromeda panel is connected via a serial CAT port.
         // NOT used for G2 panel accessed via TCP/IP
+        // when connection established, request ID.
         private bool andromeda_cat_enabled;
         public bool AndromedaCATEnabled
         {
@@ -16043,7 +16044,8 @@ namespace Thetis
                         if (andromeda_cat_enabled)
                         {
                             AndromedaSiolisten.enableCAT5();
-                            InitialiseAndromedaIndicators(true);           // initialise the panel LEDs
+                            MakeAndromedaVersionRequestMsg();
+                            //InitialiseAndromedaIndicators(true);           // initialise the panel LEDs   g8njj now done by ZZZS response
                             toolStripStatusLabelAndromedaMulti.Visible = true;
                         }
                         else
@@ -43528,6 +43530,8 @@ namespace Thetis
             toolStripStatusLabel_CatTCPip.Width = 22;
             toolStripStatusLabel_CatSerial.Width = 22;
             toolStripStatusLabel_CMstatus.Width = 22;
+            toolStripStatus_PAspacer.Width = 16;
+            toolStripStatusLabel_PAstatus.Width = 32;
 
             toolStripStatusLabel_timer.Width = 80;
             toolStripStatusLabel_UTCTime.Width = 92;
@@ -44488,7 +44492,7 @@ namespace Thetis
         private void OnModeChangeHandler(int rx, DSPMode oldMode, DSPMode newMode, Band oldBand, Band newBand)
         {
             //reset the cw auto mode return [2.10.3.12]MW0LGE
-            if(!(newMode == DSPMode.CWL || newMode == DSPMode.CWU))
+            if (!(newMode == DSPMode.CWL || newMode == DSPMode.CWU))
             {
                 _old_cw_auto_mode = DSPMode.FIRST;
             }
@@ -46662,17 +46666,20 @@ namespace Thetis
         private ToolTip m_statusBarToolTip = null;
         private void addStatusStripToolTipHandlers()
         {
+            // this resolves issue where tooltips are not show on status bar items
             toolStripStatusLabel_CMstatus.MouseHover += toolTipItemMouseHover;
             toolStripStatusLabel_N1MM.MouseHover += toolTipItemMouseHover;
             toolStripStatusLabel_CatTCPip.MouseHover += toolTipItemMouseHover;
             toolStripStatusLabel_CatSerial.MouseHover += toolTipItemMouseHover;
             toolStripStatusLabel_TCI.MouseHover += toolTipItemMouseHover;
+            toolStripStatusLabel_PAstatus.MouseHover += toolTipItemMouseHover;
 
             toolStripStatusLabel_CMstatus.MouseLeave += toolTipItemMouseLeave;
             toolStripStatusLabel_N1MM.MouseLeave += toolTipItemMouseLeave;
             toolStripStatusLabel_CatTCPip.MouseLeave += toolTipItemMouseLeave;
             toolStripStatusLabel_CatSerial.MouseLeave += toolTipItemMouseLeave;
             toolStripStatusLabel_TCI.MouseLeave += toolTipItemMouseLeave;
+            toolStripStatusLabel_PAstatus.MouseLeave += toolTipItemMouseLeave;
         }
 
         private void toolTipItemMouseHover(object sender, EventArgs e)
@@ -47405,14 +47412,13 @@ namespace Thetis
             if (!BPFToolStripMenuItem.DropDown.Visible) BPFToolStripMenuItem.ShowDropDown();
         }
 
-        private Dictionary<string, double> _minimum_rx_notch_width = new Dictionary<string, double>();
+        private Dictionary<int, double> _minimum_rx_notch_width = new Dictionary<int, double>();
         private double _minimum_tx_notch_width = 100;
         public double GetMinimumRXNotchWidth(int rx)
         {
-            if(rx<1 || rx>2) return 100;
+            if(rx < 1 || rx > 2) return 100;
 
-            string key = rx.ToString();
-            if(_minimum_rx_notch_width.ContainsKey(key)) return _minimum_rx_notch_width[key];
+            if(_minimum_rx_notch_width.ContainsKey(rx - 1)) return _minimum_rx_notch_width[rx - 1];
             return 100;
         }
         public double GetMinimumTXNotchWidth()
@@ -47439,14 +47445,13 @@ namespace Thetis
                     WDSP.RXANBPGetMinNotchWidth(chan, &min_notch_width);
                 }
 
-                string key = rx.ToString();
-                if (_minimum_rx_notch_width.ContainsKey(key))
+                if (_minimum_rx_notch_width.ContainsKey(rx - 1))
                 {
-                    _minimum_rx_notch_width[key] = min_notch_width;
+                    _minimum_rx_notch_width[rx - 1] = min_notch_width;
                 }
                 else
                 {
-                    _minimum_rx_notch_width.Add(key, min_notch_width);
+                    _minimum_rx_notch_width.Add(rx - 1, min_notch_width);
                 }
 
                 MinimumRXNotchWidthChangedHandlers?.Invoke(rx, min_notch_width);
@@ -52147,6 +52152,113 @@ namespace Thetis
         {
             MatchTXFilterToRXFilter();
         }
+
+        #region PA_STATUS_INDICATOR
+        //Support for Ganymede PA status
+        private void toolStripStatusLabel_PAstatus_MouseUp(object sender, MouseEventArgs e)
+        {
+            // user clicks the status bar item, do something...
+            if(e.Button == MouseButtons.Right)
+            {
+                // show PA status form
+            }
+            else
+            {
+                // try do a reset if needed
+                // based on PAStatusIndicator conditions
+            }
+        }
+
+        public static string GetPAStatusText(PAstatusIndicatorState state)
+        {
+            //helper function to retun some status text used in tooltips and spectral display
+
+            if (state == PAstatusIndicatorState.NotUsed) return "PA Status: Not Used";
+
+            if ((state & PAstatusIndicatorState.OK) != 0) return "PA Status: OK";
+
+            PAstatusIndicatorState fault_mask = PAstatusIndicatorState.Voltage |
+                                                PAstatusIndicatorState.Current |
+                                                PAstatusIndicatorState.ReversePower |
+                                                PAstatusIndicatorState.Temperature;
+
+            PAstatusIndicatorState faults = state & fault_mask;
+
+            if (faults == 0) return "PA Status: OK";
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(64);
+            sb.Append("PA Status: Excess ");
+
+            if ((faults & PAstatusIndicatorState.Voltage) != 0) sb.Append("Supply Voltage ");
+            if ((faults & PAstatusIndicatorState.Current) != 0) sb.Append("Current ");
+            if ((faults & PAstatusIndicatorState.ReversePower) != 0) sb.Append("Reverse Power ");
+            if ((faults & PAstatusIndicatorState.Temperature) != 0) sb.Append("Temperature ");
+
+            return sb.ToString().TrimEnd(' ');
+        }
+
+        // PAstatusIndicatorState is a flag based enum in Enums.cs
+        private PAstatusIndicatorState _pa_status_indicator = PAstatusIndicatorState.NotUsed;
+        private PAstatusIndicatorState PAStatusIndicator
+        {
+            // used to set the state of the status bar icon, and display spectral area
+            // eg. PAStatusIndicator = PAstatusIndicatorState.NotUsed;
+            //     PAStatusIndicator = PAstatusIndicatorState.Voltage | PAstatusIndicatorState.Temperature;
+            get { return _pa_status_indicator; }
+            set
+            {
+                if (_pa_status_indicator == value) return;
+
+                _pa_status_indicator = value;
+                Display.PAStatus = _pa_status_indicator;
+
+                if (value == PAstatusIndicatorState.NotUsed)
+                {
+                    toolStripStatusLabel_PAstatus.Visible = false;
+                    return;
+                }
+
+                toolStripStatusLabel_PAstatus.Visible = true;
+                toolStripStatusLabel_PAstatus.ToolTipText = GetPAStatusText(value);
+
+                PAstatusIndicatorState fault_mask = PAstatusIndicatorState.Voltage |
+                                                    PAstatusIndicatorState.Current |
+                                                    PAstatusIndicatorState.ReversePower |
+                                                    PAstatusIndicatorState.Temperature;
+
+                PAstatusIndicatorState faults = value & fault_mask;
+
+                if (((value & PAstatusIndicatorState.OK) != 0) || faults == 0)
+                {
+                    toolStripStatusLabel_PAstatus.Width = Properties.Resources.paok.Width;
+                    toolStripStatusLabel_PAstatus.Image = Properties.Resources.paok;
+                    return;
+                }
+
+                toolStripStatusLabel_PAstatus.Width = Properties.Resources.paflt.Width;
+                toolStripStatusLabel_PAstatus.Image = Properties.Resources.paflt;
+            }
+        }
+        private void btnTestPAStatus_MouseUp(object sender, MouseEventArgs e)
+        {
+            //test button. right set to not used, left click will cycle
+            if (e.Button == MouseButtons.Right)
+            {
+                PAStatusIndicator = PAstatusIndicatorState.NotUsed;
+            }
+            else
+            {
+                if (PAStatusIndicator != PAstatusIndicatorState.OK)
+                {
+                    PAStatusIndicator = PAstatusIndicatorState.OK;
+                }
+                else
+                {
+                    PAStatusIndicator = PAstatusIndicatorState.Voltage | PAstatusIndicatorState.Temperature;
+                }
+            }
+        }
+        #endregion
     }
 
     public class DigiMode

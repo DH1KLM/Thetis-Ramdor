@@ -35781,6 +35781,8 @@ namespace Thetis
                 return;
             }
 
+            f.Board = HardwareSpecific.Hardware.ToString();
+
             DialogResult dr = f.ShowDialog(this);
             if(dr == DialogResult.Cancel) return;
 
