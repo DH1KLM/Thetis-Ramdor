@@ -6110,7 +6110,8 @@ namespace Thetis
                 HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
                 HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM
             {
-                if (HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM
+                if (HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || 
+                    HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM
                 {
                     //chkAlexPresent.Parent = groupBoxHPSDRHW;
                     //chkAlexPresent.Location = new Point(43, 120);
