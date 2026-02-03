@@ -20402,8 +20402,8 @@ namespace Thetis
             OPTIONS3_Tab,
             PA_Tab,
             HWSET_Tab,
-            OtherHW_PA_Tab,
             FW_Tab // DH1KLM for Yevgeni Red Pitaya Ant. Interface
+            OtherHW_PA_Tab
         }
         public void ShowSetupTab(SetupTab eTab)
         {
