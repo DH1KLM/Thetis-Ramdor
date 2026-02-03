@@ -629,7 +629,6 @@ void SetAlex4HPFBits(int bits)
 	Alex4HPFMask = bits;
 }
 
-PORT
 // LPF bits can be used in older radioas as part of RX filtering too.
 // Change to protocol 2 from 4.3 onwards: TX settings are encoded in the Alex1 word
 // to remain comparible with older hardware, the logic will be:
@@ -1376,6 +1375,9 @@ void create_rnet()
 
 	prn = (RADIONET)malloc(sizeof(radionet));
 	if (prn) {
+		bandwidth_monitor_reset();
+		prn->base_outbound_port = 1024;
+		prn->p2_custom_port_base = 1025;
 		prn->RxBuff = (double**) calloc (8, sizeof (double*));
 		for (int i = 0; i < 8; i++)
 			prn->RxBuff[i] = (double*) calloc (64, 2 * sizeof (double));
@@ -1385,7 +1387,7 @@ void create_rnet()
 		prn->OutBufp = (char*)calloc(1, sizeof(char) * 1440);
 		prn->outLRbufp = (double*)calloc(1, sizeof(double) * 1440); 
 		prn->outIQbufp = (double*)calloc(1, sizeof(double) * 1440);
-		prn->rx_base_port = 1035;
+		//prn->rx_base_port = prn->base_radio_port + 11;// RXBasePort;// 1035;
 		prn->run = 0;
 		prn->wdt = 0;
 		prn->sendHighPriority = 1;
@@ -1411,7 +1413,7 @@ void create_rnet()
 		prn->mic.line_in_gain = 0;
 		prn->mic.spp = 64; // I-samples per packet
 
-		prn->wb_base_port = 1027;
+		//prn->wb_base_port = prn->base_radio_port + 3;// WB0Port;// 1027;
 		prn->wb_base_dispid = 32;
 		prn->wb_enable = 0;
 		prn->wb_samples_per_packet = 512;

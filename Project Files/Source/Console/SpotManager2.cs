@@ -24,6 +24,20 @@ The author can be reached by email at
 
 mw0lge@grange-lane.co.uk
 */
+//
+//============================================================================================//
+// Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
+// ------------------------------------------------------------------------------------------ //
+// For any code originally written by Richard Samphire MW0LGE, or for any modifications       //
+// made by him, the copyright holder for those portions (Richard Samphire) reserves the       //
+// right to use, license, and distribute such code under different terms, including           //
+// closed-source and proprietary licences, in addition to the GNU General Public License      //
+// granted above. Nothing in this statement restricts any rights granted to recipients under  //
+// the GNU GPL. Code contributed by others (not Richard Samphire) remains licensed under      //
+// its original terms and is not affected by this dual-licensing statement in any way.        //
+// Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
+//============================================================================================//
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +46,7 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Timers;
 using System.Globalization;
+using System.Web.UI;
 
 namespace Thetis
 {
@@ -62,29 +77,35 @@ namespace Thetis
 
             public bool previously_highlighted;
             public bool flashing;
+            public DateTime flash_start_time;
 
             public bool[] Visible;
             public SizeF Size;
             public Rectangle[] BoundingBoxInPixels;
             public bool[] Highlight;
 
+            public Color text_colour;
+
             public smSpot()
             {
+                DateTime now = DateTime.UtcNow;
                 callsign = "";
                 mode = DSPMode.FIRST;
                 frequencyHZ = 0;
                 colour = Color.White;
-                timeAdded = DateTime.UtcNow;
+                timeAdded = now;
                 additionalText = "";
                 spotter = "";
                 heading = -1;
                 continent = "";
                 country = "";
-                utc_spot_time = DateTime.UtcNow;
+                utc_spot_time = now;
                 IsSWL = false;
                 SwlSecondsToLive = 0;
                 previously_highlighted = false;
                 flashing = false;
+                flash_start_time = now;
+                text_colour = Color.Empty;
             }
             public void BrowseQRZ()
             {
@@ -258,8 +279,10 @@ namespace Thetis
 
             return raw_mode;
         }
-        public static void AddSpot(string callsign, DSPMode mode, long frequencyHz, Color colour, string additionalText, string spotter = "", string raw_mode = "", int beam_heading = -1, string spot_continent = "", string spot_country = "", string date_time = "")
+        public static void AddSpot(string callsign, DSPMode mode, long frequencyHz, Color colour, string additionalText, Color text_colour, string spotter = "", string raw_mode = "", int beam_heading = -1, string spot_continent = "", string spot_country = "", string date_time = "")
         {
+            //spot_text_colour of Color.empty will not be used by the renders
+
             DateTime spotted_time = DateTime.UtcNow;
             if (!string.IsNullOrEmpty(date_time))
             {
@@ -290,7 +313,9 @@ namespace Thetis
                 SwlSecondsToLive = time_to_live,
 
                 previously_highlighted = false,
-                flashing = false
+                flashing = (DateTime.UtcNow - spotted_time).TotalSeconds <= 120,
+
+                text_colour = text_colour
             };
 
             if (_replaceOwnCallAppearance && spot.callsign == _replaceCall)
@@ -321,9 +346,27 @@ namespace Thetis
 
             lock (_objLock)
             {
-                smSpot exists = _spots.Find(o => (o.callsign == spot.callsign) && (Math.Abs(o.frequencyHZ - frequencyHz) <= 5000));
+                smSpot exists = _spots.Find(o => string.Equals(o.callsign?.Trim(), spot.callsign?.Trim(), StringComparison.OrdinalIgnoreCase) && Math.Abs(o.frequencyHZ - frequencyHz) <= 5000);
                 if (exists != null)
+                {
+                    spot.flash_start_time = exists.flash_start_time;
+                    spot.flashing = exists.flashing;
+
+                    //if the data is the same, use the original spot time
+                    if (spot.mode == exists.mode &&
+                        Math.Abs(spot.frequencyHZ - exists.frequencyHZ) <= 5000 &&
+                        spot.colour == exists.colour &&
+                        spot.heading == exists.heading &&
+                        string.Equals(spot.additionalText?.Trim(), exists.additionalText?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(spot.spotter?.Trim(), exists.spotter?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(spot.continent?.Trim(), exists.continent?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(spot.country?.Trim(), exists.country?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        spot.utc_spot_time = exists.utc_spot_time;
+                    }
+
                     _spots.Remove(exists);
+                }
 
                 // Limit to max
                 int count_swl = _spots.Count(o => o.IsSWL);
@@ -348,6 +391,17 @@ namespace Thetis
                 }
 
                 _spots.Add(spot);
+            }
+        }
+
+        public static bool HasSpots
+        {
+            get
+            {
+                lock (_objLock)
+                {
+                    return _spots.Count > 0;
+                }
             }
         }
 

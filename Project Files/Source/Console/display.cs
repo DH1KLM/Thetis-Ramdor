@@ -30,6 +30,19 @@
 // Waterfall AGC Modifications Copyright (C) 2013 Phil Harman (VK6APH)
 // Transitions to directX and continual modifications Copyright (C) 2020-2025 Richard Samphire (MW0LGE)
 //=================================================================
+//
+//============================================================================================//
+// Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
+// ------------------------------------------------------------------------------------------ //
+// For any code originally written by Richard Samphire MW0LGE, or for any modifications       //
+// made by him, the copyright holder for those portions (Richard Samphire) reserves the       //
+// right to use, license, and distribute such code under different terms, including           //
+// closed-source and proprietary licences, in addition to the GNU General Public License      //
+// granted above. Nothing in this statement restricts any rights granted to recipients under  //
+// the GNU GPL. Code contributed by others (not Richard Samphire) remains licensed under      //
+// its original terms and is not affected by this dual-licensing statement in any way.        //
+// Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
+//============================================================================================//
 
 
 using System.Linq;
@@ -63,7 +76,8 @@ namespace Thetis
     using AlphaMode = SharpDX.Direct2D1.AlphaMode;
     using Device = SharpDX.Direct3D11.Device;
     using RectangleF = SharpDX.RectangleF;
-    using SDXPixelFormat = SharpDX.Direct2D1.PixelFormat;   
+    using SDXPixelFormat = SharpDX.Direct2D1.PixelFormat;
+    using System.Threading;
 
     class Display
     {
@@ -75,7 +89,6 @@ namespace Thetis
         public const int BUFFER_SIZE = 16384;
 
         public static Console console;
-        public static SpotControl SpotForm;                     // ke9ns add  communications with spot.cs and dx spotter
         public static string background_image = null;
 
         private static int[] histogram_data = null;				// histogram display buffer
@@ -605,7 +618,8 @@ namespace Thetis
         }
         private static void OnMinRXNotchWidthChanged(int rx, double width)
         {
-            _mnfMinSizeRX = width;
+            if(rx < 1 || rx > 2) return; 
+            _mnfMinSizeRX[rx-1] = width;
         }
         private static void OnMinTXNotchWidthChanged(double width)
         {
@@ -731,7 +745,7 @@ namespace Thetis
             set
             {
                 m_bNoiseFloorGoodRX1 = false;
-                if(value) _fLastFastAttackEnabledTimeRX1 = m_objFrameStartTimer.ElapsedMsec;
+                if(value) _fLastFastAttackEnabledTimeRX1 = _high_perf_timer.ElapsedMsec;
                 m_bFastAttackNoiseFloorRX1 = value;
             }
         }
@@ -741,7 +755,7 @@ namespace Thetis
             set
             {
                 m_bNoiseFloorGoodRX2 = false;
-                if(value) _fLastFastAttackEnabledTimeRX2 = m_objFrameStartTimer.ElapsedMsec;
+                if(value) _fLastFastAttackEnabledTimeRX2 = _high_perf_timer.ElapsedMsec;
                 m_bFastAttackNoiseFloorRX2 = value;
             }
         }
@@ -833,14 +847,18 @@ namespace Thetis
             get { return _runningFPSProfile; }
             set 
             {
-                _runningFPSProfile = value;
-                if (_runningFPSProfile)
+                if (value)
                 {
+                    _runningFPSProfile = false;
+                    _fps_profile_data.Clear();
                     _fps_profile_start = m_dElapsedFrameStart;
+                    _runningFPSProfile = value;
                 }
                 else
                 {
+                    _runningFPSProfile = false;
                     _fps_profile_start = double.MinValue;
+                    _fps_profile_data.Clear();
                 }
             }
         }
@@ -852,15 +870,11 @@ namespace Thetis
         }
         //=======================================================
 
-        private static bool m_bSpecialPanafall = false; // ke9ns add 1=map mode (panafall but only a small waterfall) and only when just in RX1 mode)
-
-        //========================================================
-
         public static bool specready = false;
         private static int displayTargetHeight = 0;	// target height
         private static int displayTargetWidth = 0;	// target width
         private static Control displayTarget = null;
-        private static double _mnfMinSizeRX = 100;
+        private static double[] _mnfMinSizeRX = { 100,100 };
         private static double _mnfMinSizeTX = 100;
 
         private static string _cpu;
@@ -868,6 +882,15 @@ namespace Thetis
         private static string _ram;
         private static string _installed_ram;
 
+        private static AdaptorInfo _display_adaptor = null;
+        public static AdaptorInfo DisplayAdaptor
+        {
+            get { return _display_adaptor; }
+            set
+            {
+                _display_adaptor = value;
+            }
+        }
         public static Control Target
         {
             get { return displayTarget; }
@@ -889,16 +912,23 @@ namespace Thetis
                     initDisplayArrays(displayTargetWidth, displayTargetHeight);
 
                     //UpdateMNFminWidth();
-                    _mnfMinSizeRX = console.GetMinimumRXNotchWidth(1); // just for rx1
+                    _mnfMinSizeRX[0] = console.GetMinimumRXNotchWidth(1);
+                    _mnfMinSizeRX[1] = console.GetMinimumRXNotchWidth(2);
                     _mnfMinSizeTX = console.GetMinimumTXNotchWidth();
 
                     if (!_bDX2Setup)
                     {
-                        initDX2D();
+                        initDX2D(DriverType.Hardware, _display_adaptor);
                     }
                     else
                     {
-                        resizeDX2D();
+                        if (!resizeDX2D(out string err))
+                        {
+                            ShutdownDX2D();
+                            MessageBox.Show("Unable to resize DirectX render target (Target). DirectX has been shut down.\n\n" + err, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                            return;
+                        }
+
                         ResetWaterfallBmp();
                         ResetWaterfallBmp2();
                     }                    
@@ -925,6 +955,12 @@ namespace Thetis
                 }
             }
         }
+        //radio server
+        public static int DisplayWidth
+        {
+            get { return displayTargetWidth; }
+        }
+        //
         public static Size TargetSize
         {
             get
@@ -1085,7 +1121,12 @@ namespace Thetis
             get { return rx1_preamp_offset; }
             set { rx1_preamp_offset = value; }
         }
-
+        private static bool _ignore_attenuator_offset = false;
+        public static bool IgnoreAttenuatorOffset
+        {
+            get { return _ignore_attenuator_offset; }
+            set { _ignore_attenuator_offset = value; }
+        }
         private static float alex_preamp_offset = 0.0f;
         public static float AlexPreampOffset
         {
@@ -1867,6 +1908,7 @@ namespace Thetis
         }
 
         //MW0LGE
+        private static Pen p1 = new Pen(Color.YellowGreen, 2.0f);
         private static Pen peak_blob_pen = new Pen(Color.OrangeRed);
         private static Pen peak_blob_text_pen = new Pen(Color.YellowGreen);
         private static Color data_fill_color = Color.FromArgb(128, Color.Blue);
@@ -2262,32 +2304,6 @@ namespace Thetis
             }
         }
 
-        //================================================================
-        // ke9ns add signal from console about Grayscale ON/OFF
-        private static byte Gray_Scale = 0; //  ke9ns ADD from console 0=RGB  1=Gray
-        public static byte GrayScale       // this is called or set in console
-        {
-            get { return Gray_Scale; }
-            set
-            {
-                Gray_Scale = value;
-            }
-        }
-
-
-        //================================================================
-        // kes9ns add signal from setup grid lines on/off
-        private static byte grid_off = 0; //  ke9ns ADD from setup 0=normal  1=gridlines off
-        public static byte GridOff       // this is called or set in setup
-        {
-            get { return grid_off; }
-            set
-            {
-                grid_off = value;
-            }
-        }
-
-
         private static Color rx2_waterfall_low_color = Color.Black;
         public static Color RX2WaterfallLowColor
         {
@@ -2506,7 +2522,7 @@ namespace Thetis
                 });
 
                 //delay waterfall agc
-                _rx1_no_agc_duration = m_objFrameStartTimer.ElapsedMsec + _fft_fill_timeRX1 + ((m_nFps / 1000f) * 2); // 2 extra frames
+                _rx1_no_agc_duration = _high_perf_timer.ElapsedMsec + _fft_fill_timeRX1 + ((m_nFps / 1000f) * 2); // 2 extra frames
                 _ignore_waterfall_rx1_agc = true;
             }
             else
@@ -2522,7 +2538,7 @@ namespace Thetis
                 });
 
                 //delay waterfall agc
-                _rx2_no_agc_duration = m_objFrameStartTimer.ElapsedMsec + _fft_fill_timeRX2 + ((m_nFps / 1000f) * 2); // 2 extra frames
+                _rx2_no_agc_duration = _high_perf_timer.ElapsedMsec + _fft_fill_timeRX2 + ((m_nFps / 1000f) * 2); // 2 extra frames
                 _ignore_waterfall_rx2_agc = true;
             }
         }
@@ -2585,25 +2601,7 @@ namespace Thetis
         #region Drawing Routines
         // ======================================================
         // Drawing Routines
-        // ======================================================
-
-
-        //=========================================================
-        // ke9ns draw panadapter grid
-        //=========================================================
-
-        public static int[] holder = new int[100];                           // ke9ns add DX Spot used to allow the vertical lines to all be drawn first so the call sign text can draw over the top of it.
-        public static int[] holder1 = new int[100];                          // ke9ns add
-
-        private static Pen p1 = new Pen(Color.YellowGreen, 2.0f);             // ke9ns add vert line color and thickness  DXSPOTTER
-        private static Pen p3 = new Pen(Color.Blue, 2.5f);                   // ke9ns add vert line color and thickness    MEMORY
-        private static Pen p2 = new Pen(Color.Purple, 2.0f);                  // ke9ns add color for vert line of SWL list
-
-        private static bool m_bLSB = false;                                     // ke9ns add true=LSB, false=USB
-
-        private static int VFOLow = 0;                                       // ke9ns low freq (left side of screen) in HZ (used in DX_spot)
-        private static int VFOHigh = 0;                                      // ke9ns high freq (right side of screen) in HZ
-        private static int VFODiff = 0;                                      // ke9ns diff high-low
+        // ======================================================        
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Color changeAlpha(Color c, int A)
@@ -2973,37 +2971,91 @@ namespace Thetis
             }
         }
 
-        private static string[] DX2Adaptors()
+        //[2.10.3.12]MW0LGE adaptor info
+        public class AdaptorInfo
         {
-            SharpDX.DXGI.Factory factory1 = new SharpDX.DXGI.Factory1();
+            public string Description { get; set; }
+            public bool IsHardware { get; set; }
+            public bool IsDefaultHardware { get; set; }
+            public bool IsDisplayAttached { get; set; }
+            public int VendorId { get; set; }
+            public int DeviceId { get; set; }
+            public long DedicatedVideoMemory { get; set; }
+            public long DedicatedSystemMemory { get; set; }
+            public long SharedSystemMemory { get; set; }
+            public long AdapterLuid { get; set; }
+        }
+        public static AdaptorInfo[] DX2Adaptors()
+        {
+            SharpDX.DXGI.Factory1 factory1 = new SharpDX.DXGI.Factory1();
+            int adapterCount = factory1.GetAdapterCount();
+            List<AdaptorInfo> tempList = new List<AdaptorInfo>(adapterCount);
 
-            int nAdaptorCount = factory1.GetAdapterCount();
-            string[] adaptors = new string[nAdaptorCount];
-
-            for (int n = 0; n < nAdaptorCount; n++)
+            for (int i = 0; i < adapterCount; i++)
             {
-                using (Adapter adapter = factory1.GetAdapter(n))
+                Adapter rawAdapter = factory1.GetAdapter(i);
+                Adapter1 adapter1 = rawAdapter.QueryInterface<Adapter1>();
+                AdapterDescription1 desc = adapter1.Description1;
+                bool isHardware = (desc.Flags & AdapterFlags.Software) == 0;
+                bool hasDisplay = adapter1.GetOutputCount() > 0;
+
+                AdaptorInfo info = new AdaptorInfo
                 {
-                    adaptors[n] = adapter.Description.Description;
+                    Description = desc.Description,
+                    IsHardware = isHardware,
+                    IsDefaultHardware = false,
+                    IsDisplayAttached = hasDisplay,
+                    VendorId = desc.VendorId,
+                    DeviceId = desc.DeviceId,
+                    DedicatedVideoMemory = desc.DedicatedVideoMemory,
+                    DedicatedSystemMemory = desc.DedicatedSystemMemory,
+                    SharedSystemMemory = desc.SharedSystemMemory,
+                    AdapterLuid = desc.Luid
+                };
+
+                tempList.Add(info);
+                Utilities.Dispose(ref adapter1);
+                Utilities.Dispose(ref rawAdapter);
+            }
+
+            Utilities.Dispose(ref factory1);
+
+            List<AdaptorInfo> uniqueList = new List<AdaptorInfo>(tempList.Count);
+            HashSet<long> seenLuids = new HashSet<long>();
+
+            for (int j = 0; j < tempList.Count; j++)
+            {
+                AdaptorInfo entry = tempList[j];
+                if (!seenLuids.Contains(entry.AdapterLuid))
+                {
+                    uniqueList.Add(entry);
+                    seenLuids.Add(entry.AdapterLuid);
                 }
             }
-            Utilities.Dispose(ref factory1);
-            factory1 = null;
-            return adaptors;
+
+            for (int k = 0; k < uniqueList.Count; k++)
+            {
+                if (uniqueList[k].IsHardware)
+                {
+                    uniqueList[k].IsDefaultHardware = true;
+                    break;
+                }
+            }
+
+            return uniqueList.ToArray();
         }
+        //
         private static string getGPUNameInUse()
         {
             lock (_objDX2Lock)
             {
                 if (_bDX2Setup)
                 {
-                    //SharpDX.Direct3D11.Device device = new Device(DriverType.Hardware, DeviceCreationFlags.None);
                     SharpDX.DXGI.Device dxgiDevice = _device.QueryInterface<SharpDX.DXGI.Device>();
-                    SharpDX.DXGI.Adapter adapter = dxgiDevice.Adapter;
+                    Adapter adapter = dxgiDevice.Adapter;
                     string name = adapter.Description.Description;
                     Utilities.Dispose(ref adapter);
                     Utilities.Dispose(ref dxgiDevice);
-                    //Utilities.Dispose(ref device);
                     return name;
                 }
                 else
@@ -3015,7 +3067,7 @@ namespace Thetis
         {
             get { return _bDX2Setup; }
         }
-        private static void initDX2D(DriverType driverType = DriverType.Hardware)
+        private static void initDX2D(DriverType driverType = DriverType.Hardware, AdaptorInfo adaptorInfo = null)
         {
             lock (_objDX2Lock)
             {
@@ -3084,7 +3136,35 @@ namespace Thetis
 
                     _factory1 = new SharpDX.DXGI.Factory1();
 
-                    _device = new Device(driverType, debug | DeviceCreationFlags.PreventAlteringLayerSettingsFromRegistry | DeviceCreationFlags.BgraSupport/* | DeviceCreationFlags.SingleThreaded*/, featureLevels);
+                    Adapter selectedAdapter = null;
+                    if (adaptorInfo != null)
+                    {                        
+                        int totalAdapters = _factory1.GetAdapterCount();
+                        for (int an = 0; an < totalAdapters; an++)
+                        {
+                            Adapter rawAdapter = _factory1.GetAdapter(an);
+                            Adapter1 adapter1 = rawAdapter.QueryInterface<Adapter1>();
+                            AdapterDescription1 addesc = adapter1.Description1;
+                            if (addesc.VendorId == adaptorInfo.VendorId && addesc.DeviceId == adaptorInfo.DeviceId)
+                            {
+                                selectedAdapter = rawAdapter;
+                                Utilities.Dispose(ref adapter1);
+                                break;
+                            }
+                            Utilities.Dispose(ref adapter1);
+                            Utilities.Dispose(ref rawAdapter);
+                        }
+                    }
+
+                    if (selectedAdapter != null)
+                    {
+                        _device = new Device(selectedAdapter, debug | DeviceCreationFlags.PreventAlteringLayerSettingsFromRegistry | DeviceCreationFlags.BgraSupport/* | DeviceCreationFlags.SingleThreaded*/, featureLevels);
+                        Utilities.Dispose(ref selectedAdapter);
+                    }
+                    else
+                    {
+                        _device = new Device(driverType, debug | DeviceCreationFlags.PreventAlteringLayerSettingsFromRegistry | DeviceCreationFlags.BgraSupport/* | DeviceCreationFlags.SingleThreaded*/, featureLevels);
+                    }
 
                     SharpDX.DXGI.Device1 device1 = _device.QueryInterfaceOrNull<SharpDX.DXGI.Device1>();
                     if (device1 != null)
@@ -3108,7 +3188,6 @@ namespace Thetis
 
                     //    Marshal.FreeHGlobal(pBool);
                     //}
-                    //
 
                     // check if the device has a factory4 interface
                     // if not, then we need to use old bitplit swapeffect
@@ -3233,22 +3312,32 @@ namespace Thetis
                                                        new Rational(console.DisplayFPS, 1), Format.B8G8R8A8_UNorm);
                     _swapChain1.ResizeTarget(ref modeDesc);
 
-                    // MW0LGE_21k9 must resize the back buffers, belts and braces because width/height not likely to change
-                    resizeDX2D();
+                    // must resize the back buffers, belts and braces because width/height not likely to change
+                    if (!resizeDX2D(out string err))
+                    {
+                        ShutdownDX2D();
+                        MessageBox.Show("Unable to resize DirectX render target (ResetDX2DModeDescription). DirectX has been shut down.\n\n" + err, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                        return;
+                    }
+
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
 
             }
         }
-        private static void resizeDX2D()
+        private static bool resizeDX2D(out string error)
         {
             try
             {
                 lock (_objDX2Lock)
                 {
-                    if (!_bDX2Setup) return;
+                    if (!_bDX2Setup)
+                    {
+                        error = "DirectX not setup";
+                        return false;
+                    }
 
                     Utilities.Dispose(ref _d2dRenderTarget);
                     Utilities.Dispose(ref _surface);
@@ -3271,14 +3360,30 @@ namespace Thetis
                     //[2.10.1.0] MW0LGE spectrum/bitmaps may be cleared or bad, so wait to settle
                     FastAttackNoiseFloorRX1 = true;
                     if(RX2Enabled) FastAttackNoiseFloorRX2 = true;
+
+                    // clear measure string cache
+                    m_stringSizeCache.Clear();
+                    _stringMeasureKeys.Clear();
+
+                    error = "";
+                    return true;
                 }
             }
             catch (Exception e)
             {
-                ShutdownDX2D();
-                MessageBox.Show("DirectX resizeDX2D() Meter failure\n\nThis can sometimes be caused by other programs 'hooking' into directX," +
-                    "such as GFX card control software (eg, EVGA Precision Xoc). Close down Thetis, quit as many 'system tray' and other\n" +
-                    "things as possible and try again.\n\n" + e.Message, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                //string msg = "DirectX resizeDX2D() display failure\n\nThis can sometimes be caused by other programs 'hooking' into directX," +
+                //    "such as GFX card control software (eg, EVGA Precision Xoc). Close down Thetis, quit as many 'system tray'\nand other " +
+                //    "things as possible and try again." + e.Message;
+                //if(_device.DeviceRemovedReason == SharpDX.DXGI.ResultCode.DeviceRemoved || _device.DeviceRemovedReason == SharpDX.DXGI.ResultCode.DeviceReset)
+                //{
+                //    msg += "\n\nDeviceRemoved or DeviceReset reported by DirectX, this indicates a problem with the graphics device or its driver.\n\nRemoval Code : " + _device.DeviceRemovedReason.Code.ToString();
+                //}
+                //ShutdownDX2D();
+                //MessageBox.Show(msg, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+
+                error = e.Message;
+                error += "\n\nDeviceRemovedReason : " + _device.DeviceRemovedReason.ToString();
+                return false;
             }
         }
 
@@ -3312,18 +3417,6 @@ namespace Thetis
             {
                 m_bAntiAlias = value;
                 setupAliasing();
-            }
-        }
-        public static bool SpecialPanafall
-        {
-            get { return m_bSpecialPanafall; }
-            set
-            {
-                m_bSpecialPanafall = value;
-                if (m_bSpecialPanafall)
-                    PanafallSplitBarPerc = 0.8f;
-                else
-                    PanafallSplitBarPerc = 0.5f;
             }
         }
 
@@ -3390,6 +3483,11 @@ namespace Thetis
                         FastAttackNoiseFloorRX2 = true;
                     }
                 }
+
+                if(console != null)
+                {
+                    console.SetGeneralSetting(0, OtherButtonId.PAUSE, _paused_display);
+                }
             }
         }
         private static void pauseDisplay()
@@ -3429,8 +3527,20 @@ namespace Thetis
             }
         }
 
+        private static bool _pa_issue = false;
+        private static string _pa_state_details = "";
+        public static PAstatusIndicatorState PAStatus
+        {
+            set 
+            {
+                _pa_state_details = Console.GetPAStatusText(value);
+                _pa_issue = value != PAstatusIndicatorState.NotUsed && value != PAstatusIndicatorState.OK;
+            }
+        }
+
         private static bool _valid_fps_profile = false;
         private static double _last_valid_check = double.MinValue;
+        private static int _dx_fail_retry = 0;
         public static void RenderDX2D()
         {
             try
@@ -3439,7 +3549,8 @@ namespace Thetis
                 {
                     if (!_bDX2Setup) return; // moved inside the lock so that a change in state by shutdown becomes thread safe
 
-                    m_dElapsedFrameStart = m_objFrameStartTimer.ElapsedMsec;
+                    m_dElapsedFrameStart = _high_perf_timer.ElapsedMsec;
+                    calcFps();
 
                     _bNoiseFloorAlreadyCalculatedRX1 = false; // keeps track of noise floor processing, only want to do it once, even if pana + water shown
                     _bNoiseFloorAlreadyCalculatedRX2 = false;
@@ -3605,6 +3716,7 @@ namespace Thetis
                                 break;
                             case DisplayMode.PANADAPTER:
                                 DrawPanadapterDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
+                                if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                 break;
                             case DisplayMode.SCOPE:
                                 DrawScopeDX2D(displayTargetWidth, m_nRX1DisplayHeight, false);
@@ -3620,6 +3732,7 @@ namespace Thetis
                                 break;
                             case DisplayMode.WATERFALL:
                                 DrawWaterfallDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
+                                if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                 break;
                             case DisplayMode.HISTOGRAM:
                                 DrawHistogramDX2D(1, displayTargetWidth, m_nRX1DisplayHeight);
@@ -3631,6 +3744,7 @@ namespace Thetis
                                     split_display = PanafallSplitBarPos <= (displayTargetHeight / 2); // add more granularity, TODO change based on avaialble height
                                     DrawPanadapterDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
                                     DrawWaterfallDX2D(PanafallSplitBarPos, displayTargetWidth, displayTargetHeight - m_nRX1DisplayHeight, 1, true);
+                                    if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                     split_display = false;
                                 }
                                 break;
@@ -3641,6 +3755,7 @@ namespace Thetis
                                     split_display = true;
                                     DrawPanadapterDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
                                     DrawScopeDX2D(displayTargetWidth, m_nRX1DisplayHeight, true);
+                                    if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                     split_display = false;
                                 }
                                 break;
@@ -3679,9 +3794,11 @@ namespace Thetis
                                 break;
                             case DisplayMode.PANADAPTER:
                                 DrawPanadapterDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
+                                if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                 break;
                             case DisplayMode.WATERFALL:
                                 DrawWaterfallDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
+                                if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                 break;
                             case DisplayMode.HISTOGRAM:
                                 DrawHistogramDX2D(1, displayTargetWidth, m_nRX1DisplayHeight);
@@ -3690,6 +3807,7 @@ namespace Thetis
                                 m_nRX1DisplayHeight = displayTargetHeight / 4;
                                 DrawPanadapterDX2D(0, displayTargetWidth, m_nRX1DisplayHeight, 1, false);
                                 DrawWaterfallDX2D(m_nRX1DisplayHeight, displayTargetWidth, m_nRX1DisplayHeight, 1, true);
+                                if (_showTCISpots) drawSpots(1, 0, displayTargetWidth, false);
                                 break;
                         }
 
@@ -3700,14 +3818,17 @@ namespace Thetis
 
                             case DisplayMode.PANADAPTER:
                                 DrawPanadapterDX2D(m_nRX2DisplayHeight, displayTargetWidth, m_nRX2DisplayHeight, 2, true);
+                                if (_showTCISpots) drawSpots(2, m_nRX2DisplayHeight, displayTargetWidth, false);
                                 break;
                             case DisplayMode.WATERFALL:
                                 DrawWaterfallDX2D(m_nRX2DisplayHeight, displayTargetWidth, m_nRX2DisplayHeight, 2, true);
+                                if (_showTCISpots) drawSpots(2, m_nRX2DisplayHeight, displayTargetWidth, false);
                                 break;
                             case DisplayMode.PANAFALL:
                                 m_nRX2DisplayHeight = displayTargetHeight / 4;
                                 DrawPanadapterDX2D(m_nRX2DisplayHeight * 2, displayTargetWidth, m_nRX2DisplayHeight, 2, false);
                                 DrawWaterfallDX2D(m_nRX2DisplayHeight * 3, displayTargetWidth, m_nRX2DisplayHeight, 2, true);
+                                if (_showTCISpots) drawSpots(2, m_nRX2DisplayHeight * 2, displayTargetWidth, false);
                                 break;
                         }
                     }
@@ -3726,16 +3847,23 @@ namespace Thetis
                         _bRebuildTXLinearGradBrush = true;
                     }
                 
-                    // HIGH swr display warning
-                    if (high_swr || _power_folded_back)
+                    // HIGH swr display warning, PA warning
+                    if (high_swr || _power_folded_back || _pa_issue)
                     {
-                        if (_power_folded_back)
+                        if (high_swr || _power_folded_back)
                         {
-                            drawStringDX2D("HIGH SWR\n\nPOWER FOLD BACK", fontDX2d_font14, m_bDX2_Red, 245, 20);
+                            if (_power_folded_back)
+                            {
+                                drawStringDX2D("HIGH SWR\n\nPOWER FOLD BACK", fontDX2d_font14, m_bDX2_Red, 245, 20);
+                            }
+                            else
+                            {
+                                drawStringDX2D("HIGH SWR", fontDX2d_font14, m_bDX2_Red, 245, 20);
+                            }
                         }
-                        else
+                        if (_pa_issue)
                         {
-                            drawStringDX2D("HIGH SWR", fontDX2d_font14, m_bDX2_Red, 245, 20);
+                            drawStringDX2D(_pa_state_details, fontDX2d_font14, m_bDX2_Red, 120, high_swr || _power_folded_back ? 40 : 20);
                         }
                         _d2dRenderTarget.DrawRectangle(new RectangleF(3, 3, displayTargetWidth - 6, displayTargetHeight - 6), m_bDX2_Red, 6f);
                     }
@@ -3743,7 +3871,7 @@ namespace Thetis
                     if (m_bShowFrameRateIssue && m_bFrameRateIssue) _d2dRenderTarget.FillRectangle(new RectangleF(0, 0, 8, 8), m_bDX2_Red);
                     if (m_bShowGetPixelsIssue && (_bGetPixelsIssueRX1 || _bGetPixelsIssueRX2)) _d2dRenderTarget.FillRectangle(new RectangleF(0, 8, 8, 8), m_bDX2_Yellow);
 
-                    calcFps();
+                    //calcFps();
                     if (m_bShowFPS)
                     {
                         if (_runningFPSProfile) showFPSProfile();
@@ -3776,28 +3904,55 @@ namespace Thetis
                     _d2dRenderTarget.Transform = Matrix3x2.Identity;
 
                 jump:
-
-                    _d2dRenderTarget.EndDraw();
+                    try
+                    {
+                        _d2dRenderTarget.EndDraw();
+                    }
+                    catch (SharpDXException ex) when (ex.ResultCode == SharpDX.Direct2D1.ResultCode.RecreateTarget)
+                    {
+                        if (_dx_fail_retry < 10)
+                        {
+                            resizeDX2D(out _);
+                            _dx_fail_retry++;
+                            Thread.Sleep(50);
+                            return;
+                        }
+                    }
 
                     // render
                     // note: the only way to have Present non block when using vsync number of blanks 0 , is to use DoNotWait
                     // however the gpu will error if it is busy doing something and the data can not be queued
-                    // It will error and just ignore everything, we try present and ignore the 0x887A000A error
+                    // It will error and just ignore everything, we try present and ignore the 0x887A000A (was still drawing) error
                     PresentFlags pf = m_nVBlanks == 0 ? _NoVSYNCpresentFlag : PresentFlags.None;
                     Result r = _swapChain1.TryPresent(m_nVBlanks, pf);
 
-                    if (r != Result.Ok && r != 0x887A000A)
+                    if (r != Result.Ok && !(
+                        r == SharpDX.DXGI.ResultCode.WasStillDrawing/*0x887A000A*/ ||
+                        r == 0x087A0001/*DXGI_STATUS_OCCLUDED*/
+                        ))
                     {
-                        string sMsg = "";
-                        if (r == 0x887A0001) sMsg = "Present Device Invalid Call" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";    //DXGI_ERROR_INVALID_CALL
-                        if (r == 0x887A0007) sMsg = "Present Device Reset" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";           //DXGI_ERROR_DEVICE_RESET
-                        if (r == 0x887A0005) sMsg = "Present Device Removed" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";         //DXGI_ERROR_DEVICE_REMOVED
-                        if (r == 0x88760870) sMsg = "Present Device DD3DDI Removed" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";  //D3DDDIERR_DEVICEREMOVED
-                        //if (r == 0x087A0001) sMsg = "Present Device Occluded" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";      //DXGI_STATUS_OCCLUDED
-                        //(ignored in the preceding if statement) if (r == 0x887A000A) sMsg = "Present Device Still Drawping" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]"; //DXGI_ERROR_WAS_STILL_DRAWING
+                        if ((r == SharpDX.DXGI.ResultCode.DeviceRemoved || r == SharpDX.DXGI.ResultCode.DeviceReset) && _dx_fail_retry < 10)
+                        {
+                            resizeDX2D(out _);
+                            _dx_fail_retry++;
+                            Thread.Sleep(50);
+                            return;
+                        }
 
+                        string sMsg = "";
+                        if (r == SharpDX.DXGI.ResultCode.InvalidCall/*0x887A0001*/) sMsg = "Present Device Invalid Call" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";    //DXGI_ERROR_INVALID_CALL
+                        if (r == SharpDX.DXGI.ResultCode.DeviceReset/*0x887A0007*/) sMsg = "Present Device Reset" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";           //DXGI_ERROR_DEVICE_RESET
+                        if (r == SharpDX.DXGI.ResultCode.DeviceRemoved/*0x887A0005*/) sMsg = "Present Device Removed" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";         //DXGI_ERROR_DEVICE_REMOVED
+                        //if (r == 0x88760870) sMsg = "Present Device DD3DDI Removed" + Environment.NewLine + "" + Environment.NewLine + "[ " + r.ToString() + " ]";  //D3DDDIERR_DEVICEREMOVED
+
+                        if (_dx_fail_retry > 0)
+                        {
+                            sMsg += "\n\nDirectX failures during present have occurred " + _dx_fail_retry.ToString() + " times before this.";
+                        }                        
                         if (!string.IsNullOrEmpty(sMsg)) throw (new Exception(sMsg));
                     }
+
+                    _dx_fail_retry = 0;
                 }
             }
             catch (Exception e)
@@ -3809,11 +3964,11 @@ namespace Thetis
         private static readonly List<int> _fps_profile_data = new List<int>();
         private static void showFPSProfile()
         {
-            if (m_objFrameStartTimer.ElapsedMsec - _last_valid_check >= 5000)
+            if (_high_perf_timer.ElapsedMsec - _last_valid_check >= 5000)
             {
                 //recheck every 5 seconds
                 _valid_fps_profile = !console.IsSetupFormNull ? console.SetupForm.ValidFpsProfile() : false;
-                _last_valid_check = m_objFrameStartTimer.ElapsedMsec;
+                _last_valid_check = _high_perf_timer.ElapsedMsec;
             }
 
             RoundedRectangle rr = new RoundedRectangle();
@@ -3866,33 +4021,35 @@ namespace Thetis
 
         private static int m_nFps = 0;
         private static int m_nFrameCount = 0;
-        private static HiPerfTimer m_objFrameStartTimer = new HiPerfTimer();
-        private static double m_fLastTime = m_objFrameStartTimer.ElapsedMsec;
-        private static double m_dElapsedFrameStart = m_objFrameStartTimer.ElapsedMsec;
+        private static HiPerfTimer _high_perf_timer = new HiPerfTimer();
+        private static double m_fLastTime = _high_perf_timer.ElapsedMsec;
+        private static double m_dElapsedFrameStart = _high_perf_timer.ElapsedMsec;
         private static void calcFps()
         {
             m_nFrameCount++;
-            if (m_dElapsedFrameStart >= m_fLastTime + 1000)
+            if (m_dElapsedFrameStart >= m_fLastTime + 1000.0)
             {
-                double late = m_dElapsedFrameStart - (m_fLastTime + 1000);
-                if (late > 2000 || late < 0) late = 0; // ignore if too late
+                double late = m_dElapsedFrameStart - (m_fLastTime + 1000.0);
+                if (late > 2000.0 || late < 0.0) late = 0.0; // ignore if too late
 
                 //technically, we have nframes in 1000+late ms, so we should refactor down to 1000
-                double frames_per_ms = m_nFrameCount / (1000 + late);
-                double frames_in_1000ms = frames_per_ms * 1000;
+                double frames_per_ms = m_nFrameCount / (1000.0 + late);
+                double frames_in_1000ms = frames_per_ms * 1000.0;
                 int frames = (int)frames_in_1000ms;
 
-                m_nFps = frames;// m_nFrameCount;
-                m_nFrameCount = m_nFrameCount - frames;//0;
+                m_nFps = frames;
+                m_nFrameCount = m_nFrameCount - frames;
                 m_fLastTime = m_dElapsedFrameStart - late;
 
                 if (_runningFPSProfile)
                 {
                     // for fps_profile
                     _fps_profile_data.Add(m_nFps);
-                    if (_fps_profile_data.Count > 10) _fps_profile_data.RemoveAt(0);
+                    if (_fps_profile_data.Count > 10)
+                    {
+                        _fps_profile_data.RemoveAt(0);
+                    }
                 }
-                else if (_fps_profile_data.Count > 0) _fps_profile_data.Clear();
             }
         }
 
@@ -5195,13 +5352,13 @@ namespace Thetis
                                 else
                                 {
                                     _two_tone_readings_X_offset = 50;
-                                    _d2dRenderTarget.DrawText("Peaks not found !\n\nEnsure that IMD3 lower/upper and\nIMD5 lower/upper are in the display.", fontDX2d_callout, new RectangleF(_two_tone_readings_X_offset + 10, 54, 200, 120), m_bDX2_PeakBlobText, DrawTextOptions.None);
+                                    _d2dRenderTarget.DrawText("Peaks not found !\n\nEnsure that IMD3 lower/upper and\nIMD5 lower/upper are in the display.\n\nTry changing FFT windowing method.", fontDX2d_callout, new RectangleF(_two_tone_readings_X_offset + 10, 54, 200, 120), m_bDX2_PeakBlobText, DrawTextOptions.None);
                                 }
                             }
                             else
                             {
                                 _two_tone_readings_X_offset = 50;
-                                _d2dRenderTarget.DrawText("Peaks not found !\n\nTry increasing zoom and/or\nchanging sample rate.\n\nFundamental peak separation needs to be increased.", fontDX2d_callout, new RectangleF(_two_tone_readings_X_offset + 10, 54, 200, 120), m_bDX2_PeakBlobText, DrawTextOptions.None);
+                                _d2dRenderTarget.DrawText("Peaks not found !\n\nTry increasing zoom and/or\nchanging sample rate.\n\nFundamental peak separation needs to be increased.\n\nTry changing FFT windowing method.", fontDX2d_callout, new RectangleF(_two_tone_readings_X_offset + 10, 54, 200, 120), m_bDX2_PeakBlobText, DrawTextOptions.None);
                             }
                         }
                     }
@@ -5215,9 +5372,7 @@ namespace Thetis
             {
                 max_y = local_max_y;
                 max_x = local_max_x;
-            }
-
-            if (_showTCISpots) drawSpots(rx, nVerticalShift, W, bottom);
+            }            
 
             return true;
         }
@@ -5320,7 +5475,7 @@ namespace Thetis
         //        if (m_bFastAttackNoiseFloorRX1 && (Math.Abs(m_fFFTBinAverageRX1 - m_fLerpAverageRX1) < 1f))
         //        {
         //            float tmpDelay = Math.Max(1000f, _fft_fill_timeRX1 + (_wdsp_mox_transition_buffer_clear ? _fft_fill_timeRX1 : 0)); // extra
-        //            bool bElapsed = (m_objFrameStartTimer.ElapsedMsec - _fLastFastAttackEnabledTimeRX1) > tmpDelay; //[2.10.1.0] MW0LGE change to time related, instead of frame related
+        //            bool bElapsed = (_high_perf_timer.ElapsedMsec - _fLastFastAttackEnabledTimeRX1) > tmpDelay; //[2.10.1.0] MW0LGE change to time related, instead of frame related
         //            if(bElapsed) m_bFastAttackNoiseFloorRX1 = false;
         //        }
 
@@ -5355,7 +5510,7 @@ namespace Thetis
         //        if (m_bFastAttackNoiseFloorRX2 && (Math.Abs(m_fFFTBinAverageRX2 - m_fLerpAverageRX2) < 1f))
         //        {
         //            float tmpDelay = Math.Max(1000f, _fft_fill_timeRX2 + (_wdsp_mox_transition_buffer_clear ? _fft_fill_timeRX2 : 0)); // extra
-        //            bool bElapsed = (m_objFrameStartTimer.ElapsedMsec - _fLastFastAttackEnabledTimeRX2) > tmpDelay; //[2.10.1.0] MW0LGE change to time related, instead of frame related
+        //            bool bElapsed = (_high_perf_timer.ElapsedMsec - _fLastFastAttackEnabledTimeRX2) > tmpDelay; //[2.10.1.0] MW0LGE change to time related, instead of frame related
         //            if(bElapsed) m_bFastAttackNoiseFloorRX2 = false;
         //        }
 
@@ -5403,7 +5558,7 @@ namespace Thetis
             if (fastAttack)
             {
                 float tmpDelay = Math.Max(1000f, fftFillTime + (_wdsp_mox_transition_buffer_clear ? fftFillTime : 0f));
-                double elapsed = m_objFrameStartTimer.ElapsedMsec - lastFastAttackTime;
+                double elapsed = _high_perf_timer.ElapsedMsec - lastFastAttackTime;
                 if (elapsed > tmpDelay) fastAttack = false;
             }
 
@@ -6708,8 +6863,8 @@ namespace Thetis
                     Utilities.Dispose(ref topPixels);
                     topPixels = null;
 
-                    bool bIgnoreAgc = (rx == 1 && _ignore_waterfall_rx1_agc && (m_objFrameStartTimer.ElapsedMsec < _rx1_no_agc_duration)) ||
-                                        (rx == 2 && _ignore_waterfall_rx2_agc && (m_objFrameStartTimer.ElapsedMsec < _rx2_no_agc_duration));
+                    bool bIgnoreAgc = (rx == 1 && _ignore_waterfall_rx1_agc && (_high_perf_timer.ElapsedMsec < _rx1_no_agc_duration)) ||
+                                        (rx == 2 && _ignore_waterfall_rx2_agc && (_high_perf_timer.ElapsedMsec < _rx2_no_agc_duration));
                     
                     if (!bIgnoreAgc)
                     {
@@ -6766,9 +6921,7 @@ namespace Thetis
 
             // MW0LGE now draw any grid/labels/scales over the top of waterfall
             //if (grid_control_major)  //[2.10.3.9]MW0LGE
-            drawPanadapterAndWaterfallGridDX2D(nVerticalShift, W, H, rx, bottom, out long left_edge, out long right_edge, true);
-
-            if (_showTCISpots) drawSpots(rx, nVerticalShift, W, bottom);
+            drawPanadapterAndWaterfallGridDX2D(nVerticalShift, W, H, rx, bottom, out long left_edge, out long right_edge, true);            
 
             //DebugText = $"previous low : {_RX1waterfallPreviousMinValue.ToString("F2")}\nlow : {low_threshold.ToString("F2")}\nhigh : {high_threshold.ToString("F2")}";
 
@@ -6798,10 +6951,20 @@ namespace Thetis
 
                 if (image != null)
                 {
-                    using (Bitmap graphicsImage = new Bitmap(image))
+                    try
                     {
-                        _bitmapBackground = SDXBitmapFromSysBitmap(_d2dRenderTarget, graphicsImage);
+                        if (image.Width > 0 && image.Height > 0)
+                        {
+                            using (Bitmap graphicsImage = new Bitmap(image))
+                            {
+                                if (graphicsImage.Width > 0 && graphicsImage.Height > 0)
+                                {
+                                    _bitmapBackground = SDXBitmapFromSysBitmap(_d2dRenderTarget, graphicsImage);
+                                }
+                            }
+                        }
                     }
+                    catch { }
                 }
             }
         }
@@ -6823,18 +6986,32 @@ namespace Thetis
             // Convert all pixels 
             for (int y = 0; y < bitmap.Height; y++)
             {
-                int offset = bitmapData.Stride * y;
+                //[2.10.3.13]MW0LGE fix issue where stride can be -ve for bottom up bitmaps
+                IntPtr rowPtr = IntPtr.Add(bitmapData.Scan0, bitmapData.Stride * y);
+                int offset = 0;
+
                 for (int x = 0; x < bitmap.Width; x++)
                 {
-                    byte B = Marshal.ReadByte(bitmapData.Scan0, offset++);
-                    byte G = Marshal.ReadByte(bitmapData.Scan0, offset++);
-                    byte R = Marshal.ReadByte(bitmapData.Scan0, offset++);
-                    byte A = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                    byte B = Marshal.ReadByte(rowPtr, offset++);
+                    byte G = Marshal.ReadByte(rowPtr, offset++);
+                    byte R = Marshal.ReadByte(rowPtr, offset++);
+                    byte A = Marshal.ReadByte(rowPtr, offset++);
 
                     int bgra = B | (G << 8) | (R << 16) | (A << 24);
                     tempStream.Write(bgra);
                 }
 
+                //int offset = bitmapData.Stride * y;
+                //for (int x = 0; x < bitmap.Width; x++)
+                //{
+                //    byte B = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                //    byte G = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                //    byte R = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                //    byte A = Marshal.ReadByte(bitmapData.Scan0, offset++);
+
+                //    int bgra = B | (G << 8) | (R << 16) | (A << 24);
+                //    tempStream.Write(bgra);
+                //}
             }
             bitmap.UnlockBits(bitmapData);
 
@@ -7696,7 +7873,7 @@ namespace Thetis
             List<MNotch> notches = MNotchDB.NotchesInBW(rf_freq, Low - console.MaxFilterWidth, High + console.MaxFilterWidth);
             List<clsNotchCoords> notchData = new List<clsNotchCoords>();
 
-            double min_notch_wdith = localMox(rx) ? _mnfMinSizeTX : _mnfMinSizeRX;
+            double min_notch_wdith = localMox(rx) ? _mnfMinSizeTX : _mnfMinSizeRX[rx-1];
             
             foreach (MNotch n in notches)
             {
@@ -8415,7 +8592,7 @@ namespace Thetis
             24890000, 24990000, 28000000, 29700000, 50000000, 54000000, 144000000, 148000000 };
                     break;
                 case FRSRegion.Japan:
-                    band_edge_list = new int[]{ 135700, 137800, 472000, 479000, 1810000, 1825000, 1907500, 1912500,
+                    band_edge_list = new int[]{ 135700, 137800, 472000, 479000, 1800000, 1875000, 1907500, 1912500,
                         3500000, 3575000, 3599000, 3612000, 3680000, 3687000, 3702000, 3716000, 3745000, 3770000, 3791000, 3805000,
             7000000, 7200000, 10100000, 10150000, 14000000, 14350000, 18068000, 18168000, 21000000, 21450000,
             24890000, 24990000, 28000000, 29700000, 50000000, 54000000, 144000000, 146000000 };
@@ -9102,254 +9279,7 @@ namespace Thetis
                     }
                 }
             }
-            #endregion
-
-            #region Spots
-            // ke9ns add draw DX SPOTS on pandapter
-            //=====================================================================
-            //=====================================================================
-
-            if (!bIsWaterfall && SpotControl.SP_Active != 0)
-            {
-                int localRit;
-                if (rx == 1)
-                    localRit = _rx1ClickDisplayCTUN ? 0 : rit_hz;
-                else
-                    localRit = 0;
-
-                int iii = 0;                          // ke9ns add stairstep holder
-
-                int kk = 0;                           // ke9ns add index for holder[] after you draw the vert line, then draw calls (so calls can overlap the vert lines)
-
-                int vfo_hz = (int)vfoa_hz;    // vfo freq in hz
-
-                int H1a = H / 2;            // length of vertical line (based on rx1 and rx2 display window configuration)
-                int H1b = 20;               // starting point of vertical line
-
-                int rxDisplayLow = RXDisplayLow;
-                int rxDisplayHigh = RXDisplayHigh;
-                SizeF length;
-
-                if (bottom || (current_display_mode_bottom == DisplayMode.PANAFALL && rx == 2))                 // if your drawing to the bottom 
-                {
-                    vfo_hz = (int)vfob_hz;
-                    rxDisplayLow = RX2DisplayLow;
-                    rxDisplayHigh = RX2DisplayHigh;
-
-                    Console.DXK2 = 0;        // RX2 index to allow call signs to draw after all the vert lines on the screen
-                }
-                else
-                {
-                    Console.DXK = 0;        // RX1 index to allow call signs to draw after all the vert lines on the screen
-                }
-
-                VFOLow = vfo_hz + rxDisplayLow;    // low freq (left side) in hz
-                VFOHigh = vfo_hz + rxDisplayHigh; // high freq (right side) in hz
-                VFODiff = VFOHigh - VFOLow;       // diff in hz
-
-                if ((vfo_hz < 5000000) || ((vfo_hz > 6000000) && (vfo_hz < 8000000))) m_bLSB = true; // LSB
-                else m_bLSB = false;     // usb
-
-                //-------------------------------------------------------------------------------------------------
-                //-------------------------------------------------------------------------------------------------
-                // draw DX spots
-                //-------------------------------------------------------------------------------------------------
-                //-------------------------------------------------------------------------------------------------
-
-                for (int ii = 0; ii < SpotControl.DX_Index; ii++)     // Index through entire DXspot to find what is on this panadapter (draw vert lines first)
-                {
-                    if ((SpotControl.DX_Freq[ii] >= VFOLow) && (SpotControl.DX_Freq[ii] <= VFOHigh))
-                    {
-                        int VFO_DXPos = (int)((((float)W / (float)VFODiff) * (float)(SpotControl.DX_Freq[ii] + cwSideToneShiftInverted - VFOLow - localRit))); // determine DX spot line pos on current panadapter screen
-
-                        holder[kk] = ii;                    // ii is the actual DX_INdex pos the the KK holds
-                        holder1[kk] = VFO_DXPos;
-
-                        kk++;
-
-                        drawLineDX2D(m_bDX2_p1, VFO_DXPos, H1b + nVerticalShift, VFO_DXPos, H1a + nVerticalShift);   // draw vertical line
-
-                    }
-
-                } // for loop through DX_Index
-
-
-                int bb = 0;
-                if (bottom || (current_display_mode_bottom == DisplayMode.PANAFALL && rx == 2))
-                {
-                    Console.DXK2 = kk; // keep a count for the bottom QRZ hyperlink
-                    bb = Console.MMK4;
-                }
-                else
-                {
-                    Console.DXK = kk; // count of spots in current panadapter
-                    bb = Console.MMK3;
-                }
-
-
-                //--------------------------------------------------------------------------------------------
-                for (int ii = 0; ii < kk; ii++) // draw call signs to screen in order to draw over the vert lines
-                {
-                    // font
-                    if (m_bLSB) // 1=LSB so draw on left side of line
-                    {
-
-                        if (Console.DisplaySpot) // display Spotted on Pan
-                        {
-                            length = measureStringDX2D(SpotControl.DX_Station[holder[ii]], fontDX2d_font1); //  temp used to determine the size of the string when in LSB and you need to reserve a certain space//  (cl.Width);
-
-                            if ((bb > 0) && (SpotControl.SP6_Active != 0))
-                            {
-                                int x2 = holder1[ii] - (int)length.Width;
-                                int y2 = H1b + iii;
-
-                                for (int jj = 0; jj < bb; jj++)
-                                {
-
-                                    if (((x2 + length.Width) >= Console.MMX[jj]) && (x2 < (Console.MMX[jj] + Console.MMW[jj])))
-                                    {
-                                        if (((y2 + length.Height) >= Console.MMY[jj]) && (y2 < (Console.MMY[jj] + Console.MMH[jj])))
-                                        {
-                                            iii = iii + 33;
-                                            break;
-                                        }
-                                    }
-
-                                } // for loop to check if DX text will draw over top of Memory text
-                            }
-
-                            drawStringDX2D(SpotControl.DX_Station[holder[ii]], fontDX2d_font1, m_bDX2_grid_text_brush, holder1[ii] - (int)length.Width, H1b + iii + nVerticalShift);
-                        }
-                        else // display SPOTTER on Pan (not the Spotted)
-                        {
-                            length = measureStringDX2D(SpotControl.DX_Spotter[holder[ii]], fontDX2d_font1); //  temp used to determine the size of the string when in LSB and you need to reserve a certain space//  (cl.Width);
-
-                            if ((bb > 0) && (SpotControl.SP6_Active != 0))
-                            {
-                                int x2 = holder1[ii] - (int)length.Width;
-                                int y2 = H1b + iii;
-
-                                for (int jj = 0; jj < bb; jj++)
-                                {
-
-                                    if (((x2 + length.Width) >= Console.MMX[jj]) && (x2 < (Console.MMX[jj] + Console.MMW[jj])))
-                                    {
-                                        if (((y2 + length.Height) >= Console.MMY[jj]) && (y2 < (Console.MMY[jj] + Console.MMH[jj])))
-                                        {
-                                            iii = iii + 33;
-                                            break;
-                                        }
-                                    }
-
-                                } // for loop to check if DX text will draw over top of Memory text
-                            }
-
-                            drawStringDX2D(SpotControl.DX_Spotter[holder[ii]], fontDX2d_font1, m_bDX2_grid_text_brush, holder1[ii] - (int)length.Width, H1b + iii + nVerticalShift);
-
-                        }
-
-                        int rx2;
-                        if (bottom || (current_display_mode_bottom == DisplayMode.PANAFALL && rx == 2)) rx2 = 50; // allow only 50 qrz spots per Receiver
-                        else rx2 = 0;
-
-                        if (!/*mox*/local_mox) // only do when not transmitting
-                        {
-                            Console.DXW[ii + rx2] = (int)length.Width;    // this is all for QRZ hyperlinking 
-                            Console.DXH[ii + rx2] = (int)length.Height;
-                            Console.DXX[ii + rx2] = holder1[ii] - (int)length.Width;
-                            Console.DXY[ii + rx2] = H1b + iii;
-                            Console.DXS[ii + rx2] = SpotControl.DX_Station[holder[ii]];
-
-                        }
-
-
-                    } // LSB side
-
-
-                    else   // 0=usb so draw on righ side of line (normal)
-                    {
-                        if (Console.DisplaySpot) // spot
-                        {
-                            length = measureStringDX2D(SpotControl.DX_Station[holder[ii]], fontDX2d_font1); //  not needed here but used for qrz hyperlinking
-
-                            if ((bb > 0) && (SpotControl.SP6_Active != 0))
-                            {
-                                int x2 = holder1[ii];
-                                int y2 = H1b + iii;
-
-                                for (int jj = 0; jj < bb; jj++)
-                                {
-
-                                    if (((x2 + length.Width) >= Console.MMX[jj]) && (x2 < (Console.MMX[jj] + Console.MMW[jj])))
-                                    {
-                                        if (((y2 + length.Height) >= Console.MMY[jj]) && (y2 < (Console.MMY[jj] + Console.MMH[jj])))
-                                        {
-                                            iii = iii + 33;
-                                            break;
-                                        }
-                                    }
-
-                                } // for loop to check if DX text will draw over top of Memory text
-                            }
-
-                            drawStringDX2D(SpotControl.DX_Station[holder[ii]], fontDX2d_font1, m_bDX2_grid_text_brush, holder1[ii], H1b + iii + nVerticalShift); // DX station name
-                        }
-                        else // spotter
-                        {
-                            length = measureStringDX2D(SpotControl.DX_Spotter[holder[ii]], fontDX2d_font1); //  not needed here but used for qrz hyperlinking
-
-                            if ((bb > 0) && (SpotControl.SP6_Active != 0))
-                            {
-                                int x2 = holder1[ii];
-                                int y2 = H1b + iii;
-
-                                for (int jj = 0; jj < bb; jj++)
-                                {
-
-                                    if (((x2 + length.Width) >= Console.MMX[jj]) && (x2 < (Console.MMX[jj] + Console.MMW[jj])))
-                                    {
-                                        if (((y2 + length.Height) >= Console.MMY[jj]) && (y2 < (Console.MMY[jj] + Console.MMH[jj])))
-                                        {
-                                            iii = iii + 33;
-                                            break;
-                                        }
-                                    }
-
-                                } // for loop to check if DX text will draw over top of Memory text
-                            }
-
-                            drawStringDX2D(SpotControl.DX_Spotter[holder[ii]], fontDX2d_font1, m_bDX2_grid_text_brush, holder1[ii], H1b + iii + nVerticalShift); // DX station name
-
-                        }
-
-                        int rx2;
-                        if (bottom || (current_display_mode_bottom == DisplayMode.PANAFALL && rx == 2)) rx2 = 50;
-                        else rx2 = 0;
-
-                        if (!/*mox*/local_mox) // only do when not transmitting
-                        {
-                            Console.DXW[ii + rx2] = (int)length.Width;   // this is all for QRZ hyperlinking 
-                            Console.DXH[ii + rx2] = (int)length.Height;
-                            Console.DXX[ii + rx2] = holder1[ii];
-                            Console.DXY[ii + rx2] = H1b + iii;
-                            Console.DXS[ii + rx2] = SpotControl.DX_Station[holder[ii]];
-                        }
-
-                        if (vfo_hz >= 50000000) // 50000000 or 50mhz
-                        {
-                            iii = iii + 11;
-                            drawStringDX2D(SpotControl.DX_Grid[holder[ii]], fontDX2d_font1, m_bDX2_grid_text_brush, holder1[ii], H1b + iii + nVerticalShift); // DX grid name
-                        }
-
-                    } // USB side
-
-                    iii = iii + 11;
-                    if (iii > 90) iii = 0;
-
-
-                }// for loop through DX_Index
-            }
-            #endregion
+            #endregion         
 
             _d2dRenderTarget.PopAxisAlignedClip();
 
@@ -10561,6 +10491,7 @@ namespace Thetis
         public static void drawSpots(int rx, int nVerticalShift, int W, bool bottom)
         {
             if (bottom) return;
+            if (!SpotManager2.HasSpots) return;
 
             long vfo_hz;
             int rxDisplayLow;
@@ -10684,7 +10615,7 @@ namespace Thetis
                         // used for mouse over + rectangle tag
                         spot.BoundingBoxInPixels[rx - 1].X = leftX - 1;
                         spot.BoundingBoxInPixels[rx - 1].Y = textY - 1;
-                        spot.BoundingBoxInPixels[rx - 1].Width = (int)(spot.Size.Width + 2);
+                        spot.BoundingBoxInPixels[rx - 1].Width = (int)(spot.Size.Width + 4);
                         spot.BoundingBoxInPixels[rx - 1].Height = (int)(spot.Size.Height + 2);
 
                         if (spot.Highlight[rx - 1])
@@ -10714,7 +10645,6 @@ namespace Thetis
             SharpDX.Direct2D1.Brush whiteBrush = getDXBrushForColour(Color.White, 255);
             SharpDX.Direct2D1.Brush blackBrush = getDXBrushForColour(Color.Black, 255);
             SharpDX.Direct2D1.Brush brightBorder = getDXBrushForColour(Color.Yellow, 255);
-            //SharpDX.Direct2D1.Brush brightBorder_new_spot = getDXBrushForColour(Color.Yellow, _new_spot_fade);
 
             // adjust fade
             double currentTime = m_dElapsedFrameStart;
@@ -10729,13 +10659,13 @@ namespace Thetis
             SpotManager2.smSpot highLightedSpot = null;
             foreach (SpotManager2.smSpot spot in visibleSpots)
             {
-                SharpDX.Direct2D1.Brush brightBorder_new_spot = getDXBrushForColour(spot.colour, _new_spot_fade);
+                SharpDX.Direct2D1.Brush brightBorder_new_spot = _override_spot_flash_colour ? getDXBrushForColour(_spot_flash_colour, _new_spot_fade) : getDXBrushForColour(spot.colour, _new_spot_fade);
 
                 sDisplayString = getCallsignString(spot);
 
                 int nLuminance = Common.GetLuminance(spot.colour);
                 spotColour = getDXBrushForColour(spot.colour, 255);
-                textBrush = nLuminance <= 128 ? whiteBrush : blackBrush;
+                textBrush = spot.text_colour == Color.Empty ? (nLuminance <= 128 ? whiteBrush : blackBrush) : getDXBrushForColour(spot.text_colour, 255);
 
                 if (spot.Highlight[rx - 1])
                 {
@@ -10751,9 +10681,6 @@ namespace Thetis
                     if (!_flashNewTCISpots) continue;
 
                     // now draw a border around any spot that is <= 2 mins
-                    TimeSpan age = DateTime.UtcNow - spot.utc_spot_time;
-                    if (age.TotalSeconds <= 120) spot.flashing = true;
-
                     if (spot.flashing && !spot.IsSWL && !spot.previously_highlighted)
                     {
                         Rectangle r = new Rectangle(spot.BoundingBoxInPixels[rx - 1].X - 2, spot.BoundingBoxInPixels[rx - 1].Y - 2,
@@ -10761,6 +10688,7 @@ namespace Thetis
 
                         drawRectangleDX2D(brightBorder_new_spot, r, 4);
 
+                        TimeSpan age = DateTime.UtcNow - spot.flash_start_time;
                         if (age.TotalSeconds > 120 && _new_spot_fade < 20) spot.flashing = false; // stop flashing when dim
                     }
                 }
@@ -10912,7 +10840,18 @@ namespace Thetis
             get { return _flashNewTCISpots; }
             set { _flashNewTCISpots= value; }
         }
-
+        private static bool _override_spot_flash_colour = false;
+        public static bool OverrideSpotFlashColour
+        {
+            get { return _override_spot_flash_colour; }
+            set { _override_spot_flash_colour = value; }
+        }
+        private static Color _spot_flash_colour = Color.Yellow;
+        public static Color SpotFlashColour
+        {
+            get { return _spot_flash_colour; }
+            set { _spot_flash_colour = value; }
+        }
         private static bool _bUseLegacyBuffers = false;
         public static bool UseLegacyBuffers
         {

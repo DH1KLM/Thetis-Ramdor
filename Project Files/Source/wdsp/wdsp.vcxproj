@@ -29,27 +29,27 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -123,7 +123,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WIN32;_DEBUG;_WINDOWS;_USRDLL;WDSP_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>.;../../lib/portaudio_VS2008/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../lib/portaudio_VS2008/include;%(AdditionalIncludeDirectories);../../lib/NR_Algorithms_$(HPSDR_PLATFORM)</AdditionalIncludeDirectories>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalOptions>/D_ATL_XP_TARGETING %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -134,7 +134,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>../../lib/fftw_$(HPSDR_PLATFORM)/libfftw3-3.lib;avrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>../../lib/fftw_$(HPSDR_PLATFORM)/libfftw3-3.lib;avrt.lib;%(AdditionalDependencies);;../../lib/NR_Algorithms_$(HPSDR_PLATFORM)/rnnoise.lib;../../lib/NR_Algorithms_$(HPSDR_PLATFORM)/specbleach.lib</AdditionalDependencies>
       <OutputFile>$(SolutionDir)..\bin\$(HPSDR_PLATFORM)\$(Configuration)\wdsp.dll</OutputFile>
       <AdditionalLibraryDirectories>../../lib/fftw_$(HPSDR_PLATFORM)</AdditionalLibraryDirectories>
     </Link>
@@ -176,7 +176,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;_WIN32;_MBCS;NDEBUG;_WINDOWS;_USRDLL;SPECHPSDR_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>.;../../lib/portaudio_VS2008/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../lib/portaudio_VS2008/include;%(AdditionalIncludeDirectories);../../lib/NR_Algorithms_$(HPSDR_PLATFORM)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <CompileAs>CompileAsC</CompileAs>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
@@ -193,7 +193,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <OutputFile>$(SolutionDir)..\bin\$(HPSDR_PLATFORM)\$(Configuration)\wdsp.dll</OutputFile>
-      <AdditionalDependencies>../../lib/fftw_$(HPSDR_PLATFORM)/libfftw3-3.lib;avrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>../../lib/fftw_$(HPSDR_PLATFORM)/libfftw3-3.lib;avrt.lib;%(AdditionalDependencies);../../lib/NR_Algorithms_$(HPSDR_PLATFORM)/rnnoise.lib;../../lib/NR_Algorithms_$(HPSDR_PLATFORM)/specbleach.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>../../lib/fftw_$(HPSDR_PLATFORM)</AdditionalLibraryDirectories>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
@@ -205,16 +205,19 @@
     <ClInclude Include="analyzer.h" />
     <ClInclude Include="anf.h" />
     <ClInclude Include="anr.h" />
+    <ClInclude Include="apfshadow.h" />
     <ClInclude Include="bandpass.h" />
     <ClInclude Include="calcc.h" />
     <ClInclude Include="calculus.h" />
     <ClInclude Include="cblock.h" />
     <ClInclude Include="cfcomp.h" />
     <ClInclude Include="cfir.h" />
+    <ClInclude Include="cmath.h" />
     <ClInclude Include="compress.h" />
     <ClInclude Include="delay.h" />
     <ClInclude Include="dexp.h" />
     <ClInclude Include="div.h" />
+    <ClInclude Include="doublepole.h" />
     <ClInclude Include="eer.h" />
     <ClInclude Include="emnr.h" />
     <ClInclude Include="emph.h" />
@@ -222,12 +225,14 @@
     <ClInclude Include="channel.h" />
     <ClInclude Include="comm.h" />
     <ClInclude Include="fcurve.h" />
+    <ClInclude Include="FDnoiseIQ.h" />
     <ClInclude Include="fftw3.h" />
     <ClInclude Include="fir.h" />
     <ClInclude Include="firmin.h" />
     <ClInclude Include="fmd.h" />
     <ClInclude Include="fmmod.h" />
     <ClInclude Include="gain.h" />
+    <ClInclude Include="gaussian.h" />
     <ClInclude Include="gen.h" />
     <ClInclude Include="icfir.h" />
     <ClInclude Include="iir.h" />
@@ -236,6 +241,7 @@
     <ClInclude Include="iqc.h" />
     <ClInclude Include="lmath.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="matchedCW.h" />
     <ClInclude Include="meter.h" />
     <ClInclude Include="meterlog10.h" />
     <ClInclude Include="nbp.h" />
@@ -246,7 +252,9 @@
     <ClInclude Include="resample.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="rmatch.h" />
+    <ClInclude Include="rnnr.h" />
     <ClInclude Include="RXA.h" />
+    <ClInclude Include="sbnr.h" />
     <ClInclude Include="sender.h" />
     <ClInclude Include="shift.h" />
     <ClInclude Include="siphon.h" />
@@ -268,31 +276,37 @@
     <ClCompile Include="analyzer.c" />
     <ClCompile Include="anf.c" />
     <ClCompile Include="anr.c" />
+    <ClCompile Include="apfshadow.c" />
     <ClCompile Include="bandpass.c" />
     <ClCompile Include="calcc.c" />
     <ClCompile Include="calculus.c" />
     <ClCompile Include="cblock.c" />
     <ClCompile Include="cfcomp.c" />
     <ClCompile Include="cfir.c" />
+    <ClCompile Include="cmath.c" />
     <ClCompile Include="compress.c" />
     <ClCompile Include="delay.c" />
     <ClCompile Include="dexp.c" />
     <ClCompile Include="div.c" />
+    <ClCompile Include="doublepole.c" />
     <ClCompile Include="eer.c" />
     <ClCompile Include="emnr.c" />
     <ClCompile Include="emph.c" />
     <ClCompile Include="eq.c" />
     <ClCompile Include="channel.c" />
     <ClCompile Include="fcurve.c" />
+    <ClCompile Include="FDnoiseIQ.c" />
     <ClCompile Include="firmin.c" />
     <ClCompile Include="fmd.c" />
     <ClCompile Include="gain.c" />
+    <ClCompile Include="gaussian.c" />
     <ClCompile Include="gen.c" />
     <ClCompile Include="icfir.c" />
     <ClCompile Include="iir.c" />
     <ClCompile Include="impulse_cache.c" />
     <ClCompile Include="iqc.c" />
     <ClCompile Include="lmath.c" />
+    <ClCompile Include="matchedCW.c" />
     <ClCompile Include="meterlog10.c" />
     <ClCompile Include="fir.c" />
     <ClCompile Include="fmmod.c" />
@@ -306,7 +320,9 @@
     <ClCompile Include="patchpanel.c" />
     <ClCompile Include="resample.c" />
     <ClCompile Include="rmatch.c" />
+    <ClCompile Include="rnnr.c" />
     <ClCompile Include="RXA.c" />
+    <ClCompile Include="sbnr.c" />
     <ClCompile Include="sender.c" />
     <ClCompile Include="shift.c" />
     <ClCompile Include="siphon.c" />

@@ -33,7 +33,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Globalization;
 using System.Collections.Generic;
-using System.Windows.Forms;                           
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace Thetis
 {
@@ -50,8 +51,7 @@ namespace Thetis
 		private Band[] BandList;
 		private int LastBandIndex;
 		private readonly ASCIIEncoding AE = new ASCIIEncoding();
-		private string lastFR = "0";
-		private string lastFT = "0";
+
         public bool Verbose { get; set; } = false;
 		private readonly int NCATInit = 500;
         private int NCATs = 0;
@@ -1068,7 +1068,6 @@ namespace Thetis
             {
                 return parser.Error1;
             }
-
         }
 
         //-W2PA Sets or reads the APF bandwidth
@@ -1222,7 +1221,7 @@ namespace Thetis
 
 		}
 
-		public string ZZAI(string s)
+        public string ZZAI(string s)
 		{
 			if(console.SetupForm.AllowFreqBroadcast)
 			{
@@ -1398,6 +1397,35 @@ namespace Thetis
             else
                 return parser.Error1;
         }
+
+        public string ZZAY(string s) // AFP tYpe
+        {
+            int n = 0;
+            int x = 0;
+
+            if (s != "")
+            {
+                n = Convert.ToInt32(s);
+                n = Math.Max(0, n);
+                n = Math.Min(3, n);
+            }
+
+            if (s.Length == parser.nSet)
+            {
+                console.APFType = n;
+                return "";
+            }
+            else if (s.Length == parser.nGet)
+            {
+                x = console.APFType;
+				return x.ToString();
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+
 
         //Moves the RX2 bandswitch down one band
         public string ZZBA()
@@ -1903,7 +1931,7 @@ namespace Thetis
 		{
 			//return parser.Error1;
 			if (console.initializing) return "";
-            return String.Format("{0:000.00}", console._total_cpu_usage.NextValue());
+            return String.Format("{0:000.00}", console.CPUPercSmoothed);
 		}
 
 		// Sets or reads the Display Average status
@@ -2179,16 +2207,32 @@ namespace Thetis
 					case 9:
 						console.DisplayModeText = "Off";
 						break;
-
 				}
 
 				return "";
 			}
 			else if(s.Length == parser.nGet)
 			{
-				return ((int) Display.CurrentDisplayMode).ToString();
+                //return ((int) Display.CurrentDisplayMode).ToString(); 
+                //[2.10.3.13]MW0LGE the above is wrong. The enum does not match the ZZDM input values
+				//fixes #600
+                switch (console.GetDisplayMode(1))
+				{
+					case DisplayMode.SPECTRUM: return "0";
+					case DisplayMode.PANADAPTER: return "1";
+					case DisplayMode.SCOPE: return "2";
+					case DisplayMode.PHASE: return "3";
+					case DisplayMode.PHASE2: return "4";
+					case DisplayMode.WATERFALL: return "5";
+					case DisplayMode.HISTOGRAM: return "6";
+					case DisplayMode.PANAFALL: return "7";
+					case DisplayMode.PANASCOPE: return "8";
+					case DisplayMode.OFF: return "9";
+
+					default: return parser.Error1;
+                }
 			}
-			else
+            else
 			{
 				return parser.Error1;
 			}
@@ -2619,14 +2663,19 @@ namespace Thetis
 						f -= Convert.ToInt32(console.SetupForm.RttyOffsetHigh);
 					else if(console.RX1DSPMode == DSPMode.DIGL)
 						f += Convert.ToInt32(console.SetupForm.RttyOffsetLow);
-					s = AddLeadingZeros(f);
-					s = s.Insert(5, separator);
+					s = AddLeadingZeros(f, 11); // [2.10.3.12]MW0LGE -- addleadingzeros uses parser.nAns which will be 0 as we might not be
+												// parsing anything here, ie being called directly from midi
+   											    // Changed to pass optional padding length, use 11
+                    s = s.Insert(5, separator);
 				}
 				else
 					s = s.Insert(5, separator);
 
-                if (!isMidi && console.CATChangesCenterFreq) // MW0LGE changed to take into consideration the flag
-                    console.UpdateCenterFreq = true;
+				if (!isMidi && console.CATChangesCenterFreq) // MW0LGE changed to take into consideration the flag
+				{
+					console.UpdateCenterFreq = true;
+				}
+
 				console.VFOAFreq = double.Parse(s);
 				return "";
 			}
@@ -2655,34 +2704,43 @@ namespace Thetis
 		{
 			if(s.Length == parser.nSet)
 			{
-				if(console.SetupForm.RttyOffsetEnabledB  && 
-					(console.RX1DSPMode == DSPMode.DIGU || console.RX1DSPMode == DSPMode.DIGL))
+				DSPMode vfoBmode = console.RX2Enabled ? console.RX2DSPMode : console.RX1DSPMode; //[2.10.3.12]MW0LGE might be a good idea to use RX2 mode if RX2 enabled.
+																								 //probably other places in this cat command code with similar issues
+                if (console.SetupForm.RttyOffsetEnabledB  && 
+					(vfoBmode == DSPMode.DIGU || vfoBmode == DSPMode.DIGL))
 				{
 					int f = int.Parse(s);
-					if(console.RX1DSPMode == DSPMode.DIGU)
+					if(vfoBmode == DSPMode.DIGU)
 						f -= Convert.ToInt32(console.SetupForm.RttyOffsetHigh);
-					else if(console.RX1DSPMode == DSPMode.DIGL)
+					else if(vfoBmode == DSPMode.DIGL)
 						f += Convert.ToInt32(console.SetupForm.RttyOffsetLow);
-					s = AddLeadingZeros(f);
-					s = s.Insert(5, separator);
+                    s = AddLeadingZeros(f, 11); // [2.10.3.12]MW0LGE -- addleadingzeros uses parser.nAns which will be 0, as we might not be
+                                                // parsing anything here, ie being called directly from midi
+                                                // Changed to pass optional padding length, use 11
+                    s = s.Insert(5, separator);
 				}
 				else
 					s = s.Insert(5, separator);
 
-                if (!isMidi2 && console.CATChangesCenterFreq) // MW0LGE changed to take into consideration the flag
-                    console.UpdateRX2CenterFreq = true;
+				if (!isMidi2 && console.CATChangesCenterFreq) // MW0LGE changed to take into consideration the flag
+				{
+					console.UpdateRX2CenterFreq = true;
+				}
+
 				console.VFOBFreq = double.Parse(s);
 				return "";
 			}
 			else if(s.Length == parser.nGet)
 			{
-				if(console.SetupForm.RttyOffsetEnabledB &&
-					(console.RX1DSPMode == DSPMode.DIGU || console.RX1DSPMode == DSPMode.DIGL))
+                DSPMode vfoBmode = console.RX2Enabled ? console.RX2DSPMode : console.RX1DSPMode; //[2.10.3.12]MW0LGE as above
+                
+				if (console.SetupForm.RttyOffsetEnabledB &&
+					(vfoBmode == DSPMode.DIGU || vfoBmode == DSPMode.DIGL))
 				{
                     int f = Convert.ToInt32(Math.Round(console.CATVFOB, 6) * 1e6);
-					if(console.RX1DSPMode == DSPMode.DIGU)
+					if(vfoBmode == DSPMode.DIGU)
 						f += Convert.ToInt32(console.SetupForm.RttyOffsetHigh);
-					else if(console.RX1DSPMode == DSPMode.DIGL)
+					else if(vfoBmode == DSPMode.DIGL)
 						f -= Convert.ToInt32(console.SetupForm.RttyOffsetLow);
 					return AddLeadingZeros(f);
 				}
@@ -3034,13 +3092,53 @@ namespace Thetis
 				return parser.Error1;
 		}
 
-		#endregion Extended CAT Methods ZZA-ZZF
+        #endregion Extended CAT Methods ZZA-ZZF
 
-		#region Extended CAT Methods ZZG-ZZM
+        #region Extended CAT Methods ZZG-ZZM
 
 
-		// Sets or reads the noise gate enable button status
-		public string ZZGE(string s)
+        // Adds an id mainly used by tcpip cat ot direct messages back to a specific cat client, there is no get
+        // TCPIPcatserver will use the response to add an id against the client
+        public string ZZGA(string s)
+        {
+            if (s.Length == parser.nSet)
+            {
+                Guid g;
+                bool is_guid = Guid.TryParse(s, out g);
+
+				if (is_guid)
+					return "ZZGA" + g.ToString().ToLower();
+				else
+					return parser.Error1;
+            }
+            else
+			{ 
+                return parser.Error1;
+            }
+        }
+
+        // Remove an id mainly used by tcpip cat ot direct messages back to a specific cat client, there is no get
+        // TCPIPcatserver will use the response to remove an id from the client
+        public string ZZGR(string s)
+        {
+            if (s.Length == parser.nSet)
+            {
+                Guid g;
+                bool is_guid = Guid.TryParse(s, out g);
+
+				if (is_guid)
+					return "ZZGR" + g.ToString().ToLower();
+				else
+					return parser.Error1;
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+
+        // Sets or reads the noise gate enable button status
+        public string ZZGE(string s)
 		{
 			if(s.Length == parser.nSet && (s == "0" || s == "1"))
 			{
@@ -4595,9 +4693,183 @@ namespace Thetis
                 return parser.Error1;
             }
         }
-        
+
+        // Sets or reads the RX1 Noise Reduction status
+		// returns 0 for off, 1,2,3,4 depending on NR in use
+        public string ZZNE(string s)
+        {
+            int sx = 0;
+
+            if (s != "")
+                sx = Convert.ToInt32(s);
+
+            if (s.Length == parser.nSet && (s == "0" || s == "1" || s == "2" || s == "3" || s == "4"))
+            {
+                console.SelectNR(1, true, sx);
+
+                return "";
+            }
+            else if (s.Length == parser.nGet)
+            {
+                return console.GetSelectedNR(1).ToString();
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+        // Sets or reads the RX2 Noise Reduction status
+        // returns 0 for off, 1,2,3,4 depending on NR in use
+        public string ZZNF(string s)
+        {
+            int sx = 0;
+
+            if (s != "")
+                sx = Convert.ToInt32(s);
+
+            if (s.Length == parser.nSet && (s == "0" || s == "1" || s == "2" || s == "3" || s == "4"))
+            {
+                console.SelectNR(2, true, sx);
+
+                return "";
+            }
+            else if (s.Length == parser.nGet)
+            {
+                return console.GetSelectedNR(2).ToString();
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+
+		// Sets the RX1 NR4 reduction amount, supplied as int from 0 to 100, then converted to 0-20dB
+        public string ZZNG(string s)
+        {
+            int val = 0;
+
+            if (s.Length == parser.nSet)
+            {
+				if (!console.IsSetupFormNull)
+				{
+                    val = Convert.ToInt32(s);
+					if (val < 0) val = 0;
+					if (val > 100) val = 100;
+					float dB = (20f / 100f) * val;
+
+                    if (console.SetupForm.InvokeRequired)
+                    {
+                        console.SetupForm.Invoke(
+                            new MethodInvoker(delegate
+                            {
+                                console.SetupForm.NR4RedcutionAmmountRX1 = dB;
+                            })
+                        );
+                    }
+                    else
+                    {
+                        console.SetupForm.NR4RedcutionAmmountRX1 = dB;
+                    }
+                }
+                return "";
+            }
+            else if (s.Length == parser.nGet)
+            {
+				if (!console.IsSetupFormNull)
+				{
+					int perc;
+					float dB = 0;
+					if (console.SetupForm.InvokeRequired)
+					{
+						console.SetupForm.Invoke(
+							new MethodInvoker(delegate
+							{
+								dB = console.SetupForm.NR4RedcutionAmmountRX1;
+							})
+						);
+					}
+					else
+					{
+						dB = console.SetupForm.NR4RedcutionAmmountRX1;
+					}
+					perc = (int)((dB / 20f) * 100f);
+					return AddLeadingZeros(perc);
+				}
+				else
+				{
+                    return AddLeadingZeros(0);
+                }
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+        // Sets the RX1 NR4 reduction amount, supplied as int from 0 to 100, then converted to 0-20dB
+        public string ZZNH(string s)
+        {
+            int val = 0;
+
+            if (s.Length == parser.nSet)
+            {
+                if (!console.IsSetupFormNull)
+                {
+                    val = Convert.ToInt32(s);
+                    if (val < 0) val = 0;
+                    if (val > 100) val = 100;
+                    float dB = (20f / 100f) * val;
+
+                    if (console.SetupForm.InvokeRequired)
+                    {
+                        console.SetupForm.Invoke(
+                            new MethodInvoker(delegate
+                            {
+                                console.SetupForm.NR4RedcutionAmmountRX2 = dB;
+                            })
+                        );
+                    }
+                    else
+                    {
+                        console.SetupForm.NR4RedcutionAmmountRX2 = dB;
+                    }
+                }
+                return "";
+            }
+            else if (s.Length == parser.nGet)
+            {
+                if (!console.IsSetupFormNull)
+                {
+                    int perc;
+                    float dB = 0;
+                    if (console.SetupForm.InvokeRequired)
+                    {
+                        console.SetupForm.Invoke(
+                            new MethodInvoker(delegate
+                            {
+                                dB = console.SetupForm.NR4RedcutionAmmountRX2;
+                            })
+                        );
+                    }
+                    else
+                    {
+                        dB = console.SetupForm.NR4RedcutionAmmountRX2;
+                    }
+                    perc = (int)((dB / 20f) * 100f);
+                    return AddLeadingZeros(perc);
+                }
+                else
+                {
+                    return AddLeadingZeros(0);
+                }
+            }
+            else
+            {
+                return parser.Error1;
+            }
+        }
+
         //Sets or reads the ANF button status
-		public string ZZNT(string s)
+        public string ZZNT(string s)
 		{
 			if(s.Length == parser.nSet && (s == "0" || s == "1"))
 			{
@@ -6329,8 +6601,6 @@ namespace Thetis
                 int val = 0;
                 float volts = 0.0f;
                 double temp2 = 0.0f;
-
-                int chan = 4;
 
                 //FWC.ReadPAADC(chan, out val);
                 volts = (float)val / 4096 * 2.5f;
@@ -8191,14 +8461,14 @@ namespace Thetis
                 return parser.Error1;
             }
         }
-        #endregion Extended CAT Methods ZZR-ZZZ
+		#endregion Extended CAT Methods ZZR-ZZZ
 
 
-        #region Helper methods
+		#region Helper methods
 
-        #region General Helpers
+		#region General Helpers
 
-        private string AddLeadingZeros(int n)
+		private string AddLeadingZeros(int n, int pad_len = -1)
 		{
 			//string num = n.ToString();
 
@@ -8208,7 +8478,14 @@ namespace Thetis
 			//return num;
 
 			//[2.10.3.9]MW0LGE refcator for speed
-            return n.ToString().PadLeft(parser.nAns, '0');
+			if (pad_len < 0)
+			{
+				return n.ToString().PadLeft(parser.nAns, '0');
+			}
+			else
+			{
+                return n.ToString().PadLeft(pad_len, '0');
+            }
         }
 
         private string JustSuffix(string s)

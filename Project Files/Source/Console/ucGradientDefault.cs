@@ -1,4 +1,4 @@
-﻿/*  ucLGPicker.cs
+﻿/*  ucGradientDefault.cs
 
 This file is part of a program that implements a Software-Defined Radio.
 
@@ -24,6 +24,19 @@ The author can be reached by email at
 
 mw0lge@grange-lane.co.uk
 */
+//
+//============================================================================================//
+// Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
+// ------------------------------------------------------------------------------------------ //
+// For any code originally written by Richard Samphire MW0LGE, or for any modifications       //
+// made by him, the copyright holder for those portions (Richard Samphire) reserves the       //
+// right to use, license, and distribute such code under different terms, including           //
+// closed-source and proprietary licences, in addition to the GNU General Public License      //
+// granted above. Nothing in this statement restricts any rights granted to recipients under  //
+// the GNU GPL. Code contributed by others (not Richard Samphire) remains licensed under      //
+// its original terms and is not affected by this dual-licensing statement in any way.        //
+// Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
+//============================================================================================//
 
 using System;
 using System.ComponentModel;
@@ -37,6 +50,7 @@ namespace Thetis
     {
         public const string DEFAULT_GRADIENT_PANADAPTOR = "9|1|0.000|-2147418368|1|0.494|-2130771968|1|0.341|-2147418368|1|0.432|-2130745856|0|0.669|-1493237760|0|0.159|-1|0|0.881|-65536|0|0.125|-32704|1|1.000|-2130771968|";
         public const string DEFAULT_GRADIENT_WATERFALL = "9|1|0.000|-16777216|0|0.678|-65536|1|0.545|-16711936|1|0.746|-39424|1|0.223|-13395610|0|0.159|-1|0|0.881|-65536|0|0.125|-32704|1|1.000|-65536|";
+        public const string DEFAULT_GRADIENT_SPECTRAL_SERVER = "9|1|0.000|-16777216|1|0.494|-65536|1|0.341|-16711936|1|0.432|-39424|1|0.159|-16777216|0|0.159|-1|0|0.881|-65536|0|0.125|-32704|1|1.000|-65536|";
 
         private bool _is_panadaptor = false; // true if waterfall
 

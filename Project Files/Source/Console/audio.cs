@@ -26,6 +26,19 @@
 //    Austin, TX 78750
 //    USA
 //=================================================================
+//
+//============================================================================================//
+// Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
+// ------------------------------------------------------------------------------------------ //
+// For any code originally written by Richard Samphire MW0LGE, or for any modifications       //
+// made by him, the copyright holder for those portions (Richard Samphire) reserves the       //
+// right to use, license, and distribute such code under different terms, including           //
+// closed-source and proprietary licences, in addition to the GNU General Public License      //
+// granted above. Nothing in this statement restricts any rights granted to recipients under  //
+// the GNU GPL. Code contributed by others (not Richard Samphire) remains licensed under      //
+// its original terms and is not affected by this dual-licensing statement in any way.        //
+// Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
+//============================================================================================//
 
 using System;
 using System.Collections;
@@ -986,7 +999,6 @@ namespace Thetis
             set
             {
                 vac1_oldVarIn = value;
-                //ivac.SetIVACvar(0, 1, vac1_oldVarIn); // used in vac enable only
             }
         }
         public static bool VAC1ControlFlagIn
@@ -1067,7 +1079,6 @@ namespace Thetis
             set
             {
                 vac1_oldVarOut = value;
-                //ivac.SetIVACvar(0, 0, vac1_oldVarOut);  // used in vac enable only
             }
         }
         public static bool VAC1ControlFlagOut
@@ -1147,7 +1158,6 @@ namespace Thetis
             set
             {
                 vac2_oldVarIn = value;
-                //ivac.SetIVACvar(1, 1, vac2_oldVarIn);  // used in vac enable only
             }
         }
         public static bool VAC2ControlFlagIn
@@ -1227,7 +1237,6 @@ namespace Thetis
             set
             {
                 vac2_oldVarOut = value;
-                //ivac.SetIVACvar(1, 0, vac2_oldVarOut);  // used in vac enable only
             }
         }
         public static bool VAC2ControlFlagOut
@@ -1690,8 +1699,6 @@ namespace Thetis
                     ivac.SetIVACFFAlpha(0, 0, vac1_ff_alphaOut);
                     ivac.SetIVACFFAlpha(0, 1, vac1_ff_alphaIn);
                     ivac.SetIVACswapIQout(0, _swap_iq_vac1);
-                    //ivac.SetIVACvar(0, 0, vac1_oldVarOut);
-                    //ivac.SetIVACvar(0, 1, vac1_oldVarIn);
                     ivac.SetIVACinitialVars(0, vac1_oldVarIn, vac1_oldVarOut);
                     //
 
@@ -1772,8 +1779,6 @@ namespace Thetis
                     ivac.SetIVACFFAlpha(1, 0, vac2_ff_alphaOut);
                     ivac.SetIVACFFAlpha(1, 1, vac2_ff_alphaIn);
                     ivac.SetIVACswapIQout(1, _swap_iq_vac2);
-                    //ivac.SetIVACvar(1, 0, vac2_oldVarOut);
-                    //ivac.SetIVACvar(1, 1, vac2_oldVarIn);
                     ivac.SetIVACinitialVars(1, vac2_oldVarIn, vac2_oldVarOut);
                     //
 
@@ -1828,27 +1833,27 @@ namespace Thetis
             phase_buf_l = new float[2048];
             phase_buf_r = new float[2048];
             Console c = Console.getConsole();
-            rc = NetworkIO.initRadio();
+
+            Cursor cur = Cursor.Current;
+            Cursor.Current = Cursors.WaitCursor;
+            rc = NetworkIO.InitRadio();
+            Cursor.Current = cur;
 
             if (rc != 0)
             {
                 if (rc == -101) // firmware version error; 
                 {
-                    string fw_err = NetworkIO.getFWVersionErrorMsg();
-                    if (fw_err == null)
-                    {
-                        fw_err = "Bad Firmware levels";
-                    }
+                    string fw_err = NetworkIO.GetFWVersionErrorMsg;
                     MessageBox.Show(fw_err, "Firmware Error",
                                     MessageBoxButtons.OK,
-                                    MessageBoxIcon.Error);
+                                    MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                     return false;
                 }
                 else
                 {
                     MessageBox.Show("Error starting SDR hardware, is it connected and powered?", "Network Error",
                                     MessageBoxButtons.OK,
-                                    MessageBoxIcon.Error);
+                                    MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                     return false;
                 }
             }
@@ -1892,7 +1897,28 @@ namespace Thetis
             int result = NetworkIO.StartAudioNative();
             if (result == 0) retval = true;
 
+            if(!c.IsSetupFormNull && c.SetupForm.SelectedRadioList != null)
+            {
+                if (retval)
+                    c.SetupForm.SelectedRadioList.RadioConnected();
+                else
+                    c.SetupForm.SelectedRadioList.RadioDisconnected();
+
+                c.SetupForm.SelectedRadioList.PLLLocked(NetworkIO.CurrentRadioProtocol == RadioProtocol.ETH && NetworkIO.getHaveSync() == 1 && NetworkIO.GetPLLLock());
+            }
+
             return retval;
+        }
+        public static void Stop()
+        {
+            Console c = Console.getConsole();
+
+            NetworkIO.StopAudio();
+
+            if (!c.IsSetupFormNull && c.SetupForm.SelectedRadioList != null)
+            {
+                c.SetupForm.SelectedRadioList.DisconnectAll();
+            }
         }
 
         //        private static void PortAudioErrorMessageBox(PaErrorCode error)

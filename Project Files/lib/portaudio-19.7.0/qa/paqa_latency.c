@@ -61,8 +61,8 @@ typedef struct
     int left_phase;
     int right_phase;
     char message[20];
-    int minFramesPerBuffer;
-    int maxFramesPerBuffer;
+    unsigned long minFramesPerBuffer;
+    unsigned long maxFramesPerBuffer;
     int callbackCount;
     PaTime minDeltaDacTime;
     PaTime maxDeltaDacTime;
@@ -170,8 +170,8 @@ PaError paqaCheckLatency( PaStreamParameters *outputParamsPtr,
     printf("Play for %d seconds.\n", NUM_SECONDS );
     Pa_Sleep( NUM_SECONDS * 1000 );
 
-    printf("  minFramesPerBuffer = %4d\n", dataPtr->minFramesPerBuffer );
-    printf("  maxFramesPerBuffer = %4d\n", dataPtr->maxFramesPerBuffer );
+    printf("  minFramesPerBuffer = %4lu\n", dataPtr->minFramesPerBuffer );
+    printf("  maxFramesPerBuffer = %4lu\n", dataPtr->maxFramesPerBuffer );
     printf("  minDeltaDacTime = %f\n", dataPtr->minDeltaDacTime );
     printf("  maxDeltaDacTime = %f\n", dataPtr->maxDeltaDacTime );
 
@@ -277,9 +277,8 @@ static int paqaCheckMultipleSuggested( PaDeviceIndex deviceIndex, int isInput )
         if( err != paNoError ) goto error;
 
         streamInfo = Pa_GetStreamInfo( stream );
-
-        err = Pa_CloseStream( stream );
-
+        // Get the latency from the streamInfo now because it will be invalid after the
+        // stream is closed.
         if( isInput )
         {
             finalLatency = streamInfo->inputLatency;
@@ -288,6 +287,8 @@ static int paqaCheckMultipleSuggested( PaDeviceIndex deviceIndex, int isInput )
         {
             finalLatency = streamInfo->outputLatency;
         }
+        err = Pa_CloseStream( stream );
+
         printf("          finalLatency = %6.4f\n", finalLatency );
         /* For the default low & high latency values, expect quite close; for other requested
          * values, at worst the next power-of-2 may result (eg 513 -> 1024) */

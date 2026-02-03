@@ -198,6 +198,30 @@
     <ClInclude Include="zetaHat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rnnr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sbnr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FDnoiseIQ.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="apfshadow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="doublepole.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gaussian.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="matchedCW.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="channel.c">
@@ -378,6 +402,30 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="zetaHat.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rnnr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sbnr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FDnoiseIQ.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="apfshadow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cmath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="doublepole.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gaussian.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="matchedCW.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,7 +2,7 @@
 
 This file is part of a program that implements a Software-Defined Radio.
 
-Copyright (C) 2013, 2014, 2015, 2016 Warren Pratt, NR0V
+Copyright (C) 2013, 2014, 2015, 2016, 2025 Warren Pratt, NR0V
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -142,6 +142,31 @@ struct _rxa
 	} agc;
 	struct
 	{
+		APFSHADOW p;
+	} apfshadow;
+	struct
+	{
+		DOUBLEPOLE p;
+	} doublepole;
+	struct
+	{
+		MATCHED p;
+	} matched;
+	struct
+	{
+		GAUSSIAN p;
+	} gaussian;
+	struct
+    {
+        RNNR p; // NR3 + NR4 support (nr3)
+    } rnnr;
+    struct
+    {
+        SBNR p; // NR3 + NR4 support (nr4)
+    } sbnr;
+
+	struct
+	{
 		SPEAK p;
 	} speak;
 	struct
@@ -190,7 +215,7 @@ extern __declspec (dllexport) void SetRXAMode (int channel, int mode);
 
 extern void RXAResCheck (int channel);
 
-extern void RXAbp1Check (int channel, int amd_run, int snba_run, int emnr_run, int anf_run, int anr_run);
+extern void RXAbp1Check (int channel, int amd_run, int snba_run, int emnr_run, int anf_run, int anr_run, int rnnr_run, int sbnr_run); // NR3 + NR4 support
 
 extern void RXAbp1Set (int channel);
 

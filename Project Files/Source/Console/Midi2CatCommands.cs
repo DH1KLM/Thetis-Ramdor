@@ -25,6 +25,19 @@ by Chris Codella, W2PA, April 2017.  Indicated by //-W2PA comment lines.
 // Modfied - Copyright (C) 2019-2025 Richard Samphire (MW0LGE)
 
  */
+//
+//============================================================================================//
+// Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
+// ------------------------------------------------------------------------------------------ //
+// For any code originally written by Richard Samphire MW0LGE, or for any modifications       //
+// made by him, the copyright holder for those portions (Richard Samphire) reserves the       //
+// right to use, license, and distribute such code under different terms, including           //
+// closed-source and proprietary licences, in addition to the GNU General Public License      //
+// granted above. Nothing in this statement restricts any rights granted to recipients under  //
+// the GNU GPL. Code contributed by others (not Richard Samphire) remains licensed under      //
+// its original terms and is not affected by this dual-licensing statement in any way.        //
+// Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
+//============================================================================================//
 
 using Midi2Cat;
 using Midi2Cat.Data; 
@@ -2012,6 +2025,22 @@ namespace Thetis
             return CmdState.NoChange;
         }
 
+        public void NoiseReduction4Amount(int msg, MidiDevice device)
+        {
+            parser.nSet = 3;
+            parser.nGet = 0;
+
+            try
+            {
+                double amount = msg * (100f / 127f);
+                commands.ZZNG(amount.ToString("000"));
+                return;
+            }
+            catch
+            {
+                return;
+            }
+        }
 
         public CmdState NoiseReductionOnOff(int msg, MidiDevice device)
         {
@@ -2020,9 +2049,9 @@ namespace Thetis
                 parser.nGet = 0;
                 parser.nSet = 1;
 
-                int NRState = Convert.ToInt16(commands.ZZNR(""));
+                int NRState = Convert.ToInt16(commands.ZZNE(""));
 
-                if (NRState == 0)
+                if (NRState != 1)
                 {
                     commands.ZZNR("1");
                     return CmdState.On;
@@ -2043,20 +2072,80 @@ namespace Thetis
                 parser.nGet = 0;
                 parser.nSet = 1;
 
-                int NRState = Convert.ToInt16(commands.ZZNS(""));
+                int NRState = Convert.ToInt16(commands.ZZNE(""));
 
-                if (NRState == 0)
+                if (NRState != 2)
                 {
                     commands.ZZNS("1");
                     return CmdState.On;
                 }
-                if (NRState == 1)
+                if (NRState == 2)
                 {
                     commands.ZZNS("0");
                     return CmdState.Off;
                 }
             }
             return CmdState.NoChange;
+        }
+        public CmdState NoiseReduction3OnOff(int msg, MidiDevice device)  //-W2PA Corrected name to appropriate one for ZZNS
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                int NRState = Convert.ToInt16(commands.ZZNE(""));
+
+                if (NRState != 3)
+                {
+                    commands.ZZNE("3");
+                    return CmdState.On;
+                }
+                if (NRState == 3)
+                {
+                    commands.ZZNE("0");
+                    return CmdState.Off;
+                }
+            }
+            return CmdState.NoChange;
+        }
+        public CmdState NoiseReduction4OnOff(int msg, MidiDevice device)  //-W2PA Corrected name to appropriate one for ZZNS
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                int NRState = Convert.ToInt16(commands.ZZNE(""));
+
+                if (NRState != 4)
+                {
+                    commands.ZZNE("4");
+                    return CmdState.On;
+                }
+                if (NRState == 4)
+                {
+                    commands.ZZNE("0");
+                    return CmdState.Off;
+                }
+            }
+            return CmdState.NoChange;
+        }
+        public void Rx2NoiseReduction4Amount(int msg, MidiDevice device)
+        {
+            parser.nSet = 3;
+            parser.nGet = 0;
+
+            try
+            {
+                double amount = msg * (100f / 127f);
+                commands.ZZNH(amount.ToString("000"));
+                return;
+            }
+            catch
+            {
+                return;
+            }
         }
 
         public CmdState Rx2NoiseReductionOnOff(int msg, MidiDevice device)  //-W2PA Corrected to calling ZZNV instead of ZZNS as above
@@ -2066,9 +2155,9 @@ namespace Thetis
                 parser.nGet = 0;
                 parser.nSet = 1;
 
-                int NRState = Convert.ToInt16(commands.ZZNS(""));
+                int NRState = Convert.ToInt16(commands.ZZNF(""));
 
-                if (NRState == 0)
+                if (NRState != 1)
                 {
                     commands.ZZNV("1");
                     return CmdState.On;
@@ -2081,7 +2170,6 @@ namespace Thetis
             }
             return CmdState.NoChange;
         }
-
         public CmdState Rx2NoiseReduction2OnOff(int msg, MidiDevice device)  //-W2PA Added function to call ZZNW
         {
             if (msg == 127)
@@ -2089,16 +2177,60 @@ namespace Thetis
                 parser.nGet = 0;
                 parser.nSet = 1;
 
-                int NRState = Convert.ToInt16(commands.ZZNS(""));
+                int NRState = Convert.ToInt16(commands.ZZNF(""));
 
-                if (NRState == 0)
+                if (NRState != 2)
                 {
                     commands.ZZNW("1");
                     return CmdState.On;
                 }
-                if (NRState == 1)
+                if (NRState == 2)
                 {
                     commands.ZZNW("0");
+                    return CmdState.Off;
+                }
+            }
+            return CmdState.NoChange;
+        }
+        public CmdState Rx2NoiseReduction3OnOff(int msg, MidiDevice device)  //-W2PA Corrected name to appropriate one for ZZNS
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                int NRState = Convert.ToInt16(commands.ZZNF(""));
+
+                if (NRState != 3)
+                {
+                    commands.ZZNF("3");
+                    return CmdState.On;
+                }
+                if (NRState == 3)
+                {
+                    commands.ZZNF("0");
+                    return CmdState.Off;
+                }
+            }
+            return CmdState.NoChange;
+        }
+        public CmdState Rx2NoiseReduction4OnOff(int msg, MidiDevice device)  //-W2PA Corrected name to appropriate one for ZZNS
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                int NRState = Convert.ToInt16(commands.ZZNF(""));
+
+                if (NRState != 4)
+                {
+                    commands.ZZNF("4");
+                    return CmdState.On;
+                }
+                if (NRState == 4)
+                {
+                    commands.ZZNF("0");
                     return CmdState.Off;
                 }
             }
@@ -6486,6 +6618,62 @@ namespace Thetis
                 }
             }
             return CmdState.NoChange;
+        }
+        public void APFType_doublepole(int msg, MidiDevice device)
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                try
+                {
+                    commands.ZZAY("0");
+                }
+                catch { }
+            }
+        }
+        public void APFType_matched(int msg, MidiDevice device)
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                try
+                {
+                    commands.ZZAY("1");
+                }
+                catch { }
+            }
+        }
+        public void APFType_gaussian(int msg, MidiDevice device)
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                try
+                {
+                    commands.ZZAY("2");
+                }
+                catch { }
+            }
+        }
+        public void APFType_biquad(int msg, MidiDevice device)
+        {
+            if (msg == 127)
+            {
+                parser.nGet = 0;
+                parser.nSet = 1;
+
+                try
+                {
+                    commands.ZZAY("3");
+                }
+                catch { }
+            }
         }
         #endregion
     }
