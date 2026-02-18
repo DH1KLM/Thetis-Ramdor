@@ -19899,7 +19899,7 @@ namespace Thetis
                 case HPSDRModel.ANAN100D:
                     chkAlexPresent.Checked = true;
                     chkAlexPresent.Enabled = true;
-                    chkApolloPresent.Enabled = false;
+                    chkApolloPresent.Enabled = true;
                     chkApolloPresent.Checked = false;
                     pnlGeneralHardwareORION.Enabled = false;
 
