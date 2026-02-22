@@ -6426,7 +6426,7 @@ namespace Thetis
             {
                 DialogResult dr = MessageBox.Show(
                     "Unchecking Receive Only may \n" +
-                    "cause damage to your SDR hardware.  Are you sure you want \n" +
+                    "cause damage to your hardware.  Are you sure you want \n" +
                     "to enable transmit?",
                     "Warning: Enable Transmit?",
                     MessageBoxButtons.YesNo,
@@ -25529,7 +25529,7 @@ namespace Thetis
 
                 if (mt == MeterType.VOICE_RECORD_PLAY_BUTTONS)
                 {
-                    nudVoiceRecordingPlayback_slots.Value = igs.GetSetting<int>("buttonbox_recordplayback_slots", true, 0, int.MaxValue, 0);
+                    nudVoiceRecordingPlayback_slots.Value = igs.GetSetting<int>("buttonbox_recordplayback_slots", true, 0, int.MaxValue, 8);
                     if (_selected_voice_slot > -1)
                     {
                         txtRecording_labelText.Text = igs.GetSetting<string>("buttonbox_recordplayback_label_" + _selected_voice_slot.ToString(), false, null, null, "Slot " + (_selected_voice_slot + 1).ToString());
@@ -26562,6 +26562,8 @@ namespace Thetis
                         grpButtonBox.Location = loc;
                         grpButtonBox.Visible = true;
 
+                        picButtonBoxInfo.Visible = false;
+
                         Point pos = new Point(150, 194);
 
                         switch (mt)
@@ -26593,6 +26595,8 @@ namespace Thetis
                                 ucTunestepOptionsGrid_buttons.Visible = false;
                                 pnlButtonBox_antenna_toggles.Visible = false;
                                 pnlVoiceRecordPlayback.Visible = false;
+                                toolTip1.SetToolTip(picButtonBoxInfo, "- alt drag slots to move them around");
+                                picButtonBoxInfo.Visible = true;
                                 break;
                             case MeterType.VOICE_RECORD_PLAY_BUTTONS:
                                 pnlVoiceRecordPlayback.Parent = grpButtonBox;
@@ -26601,6 +26605,10 @@ namespace Thetis
                                 pnlButtonBox_antenna_toggles.Visible = false;
                                 ucTunestepOptionsGrid_buttons.Visible = false;
                                 ucOtherButtonsOptionsGrid_buttons.Visible = false;
+                                toolTip1.SetToolTip(picButtonBoxInfo, "- right click slot in record mode to delete recording\n"+
+                                                                      "- shift click slot in playback to quick record to that slot\n" +
+                                                                      "- alt drag slots to move them around");
+                                picButtonBoxInfo.Visible = true;
                                 break;
                             default:
                                 pnlButtonBox_antenna_toggles.Visible = false;
@@ -35961,6 +35969,9 @@ namespace Thetis
         }
         private void initPCAudioDevicesComobs()
         {
+            Cursor c = Cursor;
+            Cursor = Cursors.WaitCursor;
+
             string selected_in_name = null;
             string selected_out_name = null;
             if (comboPCAudioDevices_IN.SelectedIndex > -1)
@@ -36027,6 +36038,8 @@ namespace Thetis
                 }
             }
             if (comboPCAudioDevices_OUT.Items.Count > 0) comboPCAudioDevices_OUT.SelectedIndex = selected;
+
+            Cursor = c;
         }
         private void radRecordingBits_CheckedChanged(object sender, EventArgs e)
         {
@@ -36289,7 +36302,7 @@ namespace Thetis
             if (mti == null) return;
             MeterManager.clsMeter m = meterFromSelectedContainer();
             if (m == null) return;
-            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order);
+            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order, MeterManager.clsMeterItem.MeterItemType.VOICE_RECORD_PLAY_BUTTONS);
             if (m == null) return;
             MeterManager.clsVoiceRecordPlay vrp = mi as MeterManager.clsVoiceRecordPlay;
             if (vrp == null) return;
@@ -36349,7 +36362,7 @@ namespace Thetis
             if (mti == null) return false;
             MeterManager.clsMeter m = meterFromSelectedContainer();
             if (m == null) return false;
-            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order);
+            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order, MeterManager.clsMeterItem.MeterItemType.VOICE_RECORD_PLAY_BUTTONS);
             if (m == null) return false;
             MeterManager.clsVoiceRecordPlay vrp = mi as MeterManager.clsVoiceRecordPlay;
             if (vrp == null) return false;
@@ -36625,7 +36638,7 @@ namespace Thetis
             if (mti == null) return;
             MeterManager.clsMeter m = meterFromSelectedContainer();
             if (m == null) return;
-            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order);
+            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order, MeterManager.clsMeterItem.MeterItemType.VOICE_RECORD_PLAY_BUTTONS);
             if (m == null) return;
             MeterManager.clsVoiceRecordPlay vrp = mi as MeterManager.clsVoiceRecordPlay;
             if (vrp == null) return;
