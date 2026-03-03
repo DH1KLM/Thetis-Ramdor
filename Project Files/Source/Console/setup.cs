@@ -405,7 +405,7 @@ namespace Thetis
             defaultLinearGradients(true, true, false);
             defaultLinearGradients(true, true, true);
 
-            setupNeworking(); //prior to getOptions so speed profile combo is initialsed
+            setupNeworking(); //prior to getOptions so nics combo is initialsed
 
             initRecordingPlaybackAudio(); //prior to getOptions setup audio recording/playback options
 
@@ -6153,8 +6153,6 @@ namespace Thetis
                 if (HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || 
                     HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM
                 {
-                    //chkAlexPresent.Parent = groupBoxHPSDRHW;
-                    //chkAlexPresent.Location = new Point(43, 120);
                     chkLPFBypass.Visible = true;
                 }
                 else
@@ -6167,8 +6165,9 @@ namespace Thetis
                 chkBPF2Gnd.Visible = true;
                 chkEnableXVTRHF.Visible = true;
 
-                // mic xlr options for G2 models
                 toolTip1.SetToolTip(chkEXT2OutOnTx, "Enable Rx BYPASS during transmit.");
+
+                // mic xlr options for G2 models
                 if (HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K)
                 {
@@ -25538,7 +25537,8 @@ namespace Thetis
                     if (_selected_voice_slot > -1)
                     {
                         txtRecording_labelText.Text = igs.GetSetting<string>("buttonbox_recordplayback_label_" + _selected_voice_slot.ToString(), false, null, null, "Slot " + (_selected_voice_slot + 1).ToString());
-                        chkRecording_slot_locked.Checked = igs.GetSetting<bool>("buttonbox_recordplayback_locked_" + _selected_voice_slot.ToString(), false, false, false, false);                        
+                        chkRecording_slot_locked.Checked = igs.GetSetting<bool>("buttonbox_recordplayback_locked_" + _selected_voice_slot.ToString(), false, false, false, false);
+                        btnRecording_load_wav_to_slot.Enabled = !chkRecording_slot_locked.Checked;
                         chkRecording_playkeybind.Checked = igs.GetSetting<bool>("buttonbox_recordplayback_useskeybind_" + _selected_voice_slot.ToString(), false, false, false, false);
                         txtRecording_playkeybind.Tag = igs.GetSetting<Keys>("buttonbox_recordplayback_keybind_" + _selected_voice_slot.ToString(), false, Keys.None, Keys.None, Keys.None);
                         Keys data = (Keys)txtRecording_playkeybind.Tag;
@@ -36130,6 +36130,8 @@ namespace Thetis
                 btnRecording_selectCustomFolder.Enabled = false;
                 console.ARP.AudioFolder = null;
             }
+
+            updateRecordingFreeSpace();
         }
 
         private void txtRecording_customFolder_TextChanged(object sender, EventArgs e)
@@ -36469,6 +36471,7 @@ namespace Thetis
         private void chkRecording_slot_locked_CheckedChanged(object sender, EventArgs e)
         {
             if (initializing) return;
+            btnRecording_load_wav_to_slot.Enabled = !chkRecording_slot_locked.Checked;
             updateMeterType();
         }
         private void chkRecording_playkeybind_CheckedChanged(object sender, EventArgs e)
@@ -36751,6 +36754,195 @@ namespace Thetis
         private void txtRecording_4char_KeyPress(object sender, KeyPressEventArgs e)
         {
             e.Handled = true;
+        }
+
+        private void nudRecording_stop_free_space_ValueChanged(object sender, EventArgs e)
+        {
+            console.ARP.StopRecordingFreeSpacePerc = (int)nudRecording_stop_free_space.Value;
+
+            updateRecordingFreeSpace();
+        }
+
+        private void updateRecordingFreeSpace()
+        {
+            bool ok = Common.TryGetDriveTotalAndFreeBytes(console.ARP.AudioFolder, out ulong totalBytes, out ulong freeBytes);
+            if (ok)
+            {
+                ulong usedBytes = totalBytes - freeBytes;
+                ulong p = (usedBytes * 100UL) / totalBytes;
+                if (p > 100UL) p = 100UL;
+
+                ucReording_free_space.Minimum = 0;
+                ucReording_free_space.Maximum = 100;
+                ucReording_free_space.Value = (int)p;
+
+                ulong perc_free = (freeBytes * 100UL) / totalBytes;
+                if (perc_free > 100UL) perc_free = 100UL;
+
+                int arpPerc = console.ARP.StopRecordingFreeSpacePerc;
+
+                if ((int)perc_free < arpPerc)
+                    ucReording_free_space.BarColor = Color.DarkRed;
+                else
+                    ucReording_free_space.BarColor = Color.Green;
+
+                ucReording_free_space.VerticalLineValue = 100 - arpPerc;
+                ucReording_free_space.VerticalLineWidth = 3;
+
+                ucReording_free_space.Visible = true;
+                lblRecording_unable_to_get_space.Visible = false;
+            }
+            else
+            {
+                lblRecording_unable_to_get_space.Visible = true;
+                ucReording_free_space.Visible = false;
+            }
+        }
+        private void tmrCheckStorageSpace_Tick(object sender, EventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this?.Invoke(new Action(() => tmrCheckStorageSpace_Tick(sender, e)));
+                return;
+            }
+
+            if (!nudRecording_stop_free_space.Visible) return;
+            updateRecordingFreeSpace();
+        }
+        private void btnRecording_load_wav_to_slot_Click(object sender, EventArgs e)
+        {
+            clsMeterTypeComboboxItem mti = lstMetersInUse.SelectedItem as clsMeterTypeComboboxItem;
+            if (mti == null) return;
+            MeterManager.clsMeter m = meterFromSelectedContainer();
+            if (m == null) return;
+            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order, MeterManager.clsMeterItem.MeterItemType.VOICE_RECORD_PLAY_BUTTONS);
+            if (m == null) return;
+            MeterManager.clsVoiceRecordPlay vrp = mi as MeterManager.clsVoiceRecordPlay;
+            if (vrp == null) return;
+
+            if (vrp.GetSlotLocked(_selected_voice_slot)) return;
+
+            string load_filename = null;
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Select WAV file";
+                dlg.Filter = "WAV files (*.wav)|*.wav";
+                dlg.FilterIndex = 1;
+                dlg.DefaultExt = "wav";
+                dlg.AddExtension = true;
+                dlg.CheckFileExists = true;
+                dlg.CheckPathExists = true;
+                dlg.Multiselect = false;
+                dlg.DereferenceLinks = true;
+
+                dlg.InitialDirectory = console.ARP.AudioFolder;
+
+                DialogResult result = dlg.ShowDialog(this);
+                if (result != DialogResult.OK) return;
+
+                load_filename = dlg.FileName;
+            }
+            if (string.IsNullOrEmpty(load_filename)) return;
+            if (!File.Exists(load_filename)) return;
+
+            if(!console.ARP.CanBePlayed(load_filename))
+            {
+                MessageBox.Show("The selected file can not be used. It may be an unsupported format, or it may be corrupted.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                return;
+            }
+
+            string fullPath = System.IO.Path.Combine(console.ARP.AudioFolder, vrp.UniqueID, "Slot_" + (_selected_voice_slot + 1).ToString() + ".wav");
+
+            console.ARP.DeleteRecording(fullPath, out _);
+
+            if (File.Exists(fullPath)) return; // unable to delete
+
+            try
+            {
+                File.Copy(load_filename, fullPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to load WAV file to slot.\n\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                return;
+            }
+        }
+
+        private void btnRecording_export_wav_from_slot_Click(object sender, EventArgs e)
+        {
+            clsMeterTypeComboboxItem mti = lstMetersInUse.SelectedItem as clsMeterTypeComboboxItem;
+            if (mti == null) return;
+            MeterManager.clsMeter m = meterFromSelectedContainer();
+            if (m == null) return;
+            MeterManager.clsMeterItem mi = m.GetMeterItem(mti.MeterType, mti.Order, MeterManager.clsMeterItem.MeterItemType.VOICE_RECORD_PLAY_BUTTONS);
+            if (m == null) return;
+            MeterManager.clsVoiceRecordPlay vrp = mi as MeterManager.clsVoiceRecordPlay;
+            if (vrp == null) return;
+
+            string file = "Slot_" + (_selected_voice_slot + 1).ToString() + ".wav";
+            string fullPath = System.IO.Path.Combine(console.ARP.AudioFolder, vrp.UniqueID, file);
+            
+            bool jsonok = console.ARP.GetJSONDetailsFromFile(fullPath, out clsAudioRecordPlayback.RecordingJsonModel json_data);
+            if (jsonok)
+            {
+                bool fulldata = !string.IsNullOrEmpty(json_data.mode) &&
+                    !string.IsNullOrEmpty(json_data.frequency) &&
+                    //!string.IsNullOrEmpty(json_data.ddcfrequency) &&
+                    json_data.bit_depth > 0 &&
+                    json_data.sample_rate > 0 &&
+                    !string.IsNullOrEmpty(json_data.utc_time);
+                if (fulldata)
+                {
+                    file = $"{json_data.mode}_{json_data.frequency}MHz_[{json_data.bit_depth}bits_{json_data.sample_rate}Hz]_{json_data.utc_time}.wav";
+                }
+            }
+
+            string save_filename = null;
+            using (SaveFileDialog dlg = new SaveFileDialog())
+            {
+                dlg.Title = "Save WAV file";
+                dlg.Filter = "WAV files (*.wav)|*.wav";
+                dlg.FilterIndex = 1;
+                dlg.DefaultExt = "wav";
+                dlg.AddExtension = true;
+                dlg.OverwritePrompt = true;
+                dlg.CheckPathExists = true;
+                dlg.DereferenceLinks = true;
+
+                dlg.InitialDirectory = console.ARP.AudioFolder;
+
+                dlg.FileName = file;
+
+                DialogResult result = dlg.ShowDialog(this);
+                if (result != DialogResult.OK) return;
+
+                save_filename = dlg.FileName;
+            }
+
+            if (string.IsNullOrEmpty(save_filename)) return;
+
+            if(File.Exists(save_filename))
+            {
+                try
+                {
+                    File.Delete(save_filename);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Failed to overwrite existing file.\n\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                    return;
+                }
+            }
+
+            try
+            {
+                File.Copy(fullPath, save_filename);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to export WAV file from slot.\n\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                return;
+            }
         }
         #endregion
 

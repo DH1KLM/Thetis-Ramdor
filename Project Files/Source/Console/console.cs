@@ -1049,7 +1049,13 @@ namespace Thetis
 
             //release notes
             _frmReleaseNotes = new frmReleaseNotes();
-            _frmReleaseNotes.InitPath(Application.StartupPath);            
+            _frmReleaseNotes.InitPath(Application.StartupPath);
+
+            //attempt to fix ampview on top issue, also done in console shown
+            if (psform != null && !psform.IsDisposed)
+            {
+                psform.FixAmpViewOnTop();
+            }
 
             LogTool.Completed("FIN");
 
@@ -20908,6 +20914,12 @@ namespace Thetis
             }
             catch { }
 
+            if (run)
+            {
+                // clear and reset any overloads before we start considering them
+                NetworkIO.getAndResetADC_Overload();
+            }
+
             while (run)
             {
                 try
@@ -23710,11 +23722,6 @@ namespace Thetis
                                 break;
                             case MeterRXMode.SIGNAL_AVERAGE:
                                 num = WDSP.CalculateRXMeter(0, 0, WDSP.MeterType.AVG_SIGNAL_STRENGTH);
-                                //num = num +
-                                //  rx1_meter_cal_offset +
-                                //   rx1PreampOffset +
-                                //   rx1_xvtr_gain_offset +
-                                //   rx1_6m_gain_offset;
                                 num += RXOffset(1);
                                 new_meter_data = num;
                                 break;
@@ -35851,7 +35858,8 @@ namespace Thetis
                     Band = BandStackManager.BandToString(RX1Band),
                     Frequency = VFOAFreq.ToString("F6", System.Globalization.CultureInfo.InvariantCulture),
                     Mode = RX1DSPMode.ToString(),
-                    UtcTime = DateTime.UtcNow
+                    UtcTime = DateTime.UtcNow,
+                    //DDCFrequency = CentreFrequency.ToString("F6", System.Globalization.CultureInfo.InvariantCulture),
                 };
                 string filename = ARP.RecordToFileFromWDSP("quick", file, 0, out string error, true, details);
                 if(string.IsNullOrEmpty(filename))
@@ -43650,6 +43658,12 @@ namespace Thetis
 
         private void Console_Shown(object sender, EventArgs e)
         {
+            //attempt to fix ampview on top issue
+            if (psform != null && !psform.IsDisposed)
+            {
+                psform.FixAmpViewOnTop();
+            }
+
             updateResolutionStatusBarText(); //MW0LGE_21b need to call this here so that drop shadow sizes can be obtained
 
             // set the multifunction setting to the status bar
@@ -43685,7 +43699,6 @@ namespace Thetis
             toolStripStatusLabel_LocalTime.Width = 92;
         }
 
-        //private bool twoTone = false;
         public bool TwoTone
         {
             get { return chk2TONE.Checked; }
@@ -46999,6 +47012,18 @@ namespace Thetis
             KeyValuePair<string, bool> kvp = _autoFormLoadingDuplicate.First();
             string form = kvp.Key;
             bool show = kvp.Value;
+            if(form == "linearity" || form == "ampview")
+            {
+                //delay until console visible
+                if (!this.Visible)
+                {
+                    // move to end of list and try later
+                    _autoFormLoadingDuplicate.Remove(form);
+                    _autoFormLoadingDuplicate.Add(form, show);
+                    _autoLoadFormTimerFormTimer.Start();
+                    return;
+                }
+            }
             _autoFormLoadingDuplicate.Remove(form);
             if(show) showOnStartup(form);
             if (_autoFormLoadingDuplicate.Count > 0)
@@ -47010,7 +47035,7 @@ namespace Thetis
 
             switch (form)
             {
-                case "setup": /*setupToolStripMenuItem_Click(this, e);*/ setupToolStripMenuItem1_Click(this, EventArgs.Empty); break;
+                case "setup": /*setupToolStripMenuItem_Click(this, e);*/ setupToolStripMenuItem1_Click(this, e); break;
                 case "memory": memoryToolStripMenuItem_Click(this, e); break;
                 case "wave": waveToolStripMenuItem_Click(this, e); break;
                 case "equaliser": equalizerToolStripMenuItem_Click(this, e); break;
