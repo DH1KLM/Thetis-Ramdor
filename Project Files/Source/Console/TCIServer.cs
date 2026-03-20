@@ -321,6 +321,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Newtonsoft.Json;
+using System.Globalization;
 
 namespace Thetis
 {
@@ -387,7 +388,7 @@ namespace Thetis
             if (source == null || count <= 0)
                 return;
 
-            EnsureCapacity(count);
+            ensureCapacity(count);
             Array.Copy(source, sourceOffset, m_buffer, m_readIndex + m_count, count);
             m_count += count;
         }
@@ -431,7 +432,7 @@ namespace Thetis
             }
         }
 
-        private void EnsureCapacity(int additionalCount)
+        private void ensureCapacity(int additionalCount)
         {
             int requiredCount = m_count + additionalCount;
             if (m_readIndex + requiredCount <= m_buffer.Length)
@@ -454,6 +455,228 @@ namespace Thetis
 
             m_buffer = newBuffer;
             m_readIndex = 0;
+        }
+    }
+
+    public sealed class clsTCISensorManager
+    {
+        private sealed class clsRxReadingState
+        {
+            public double Signal = -200.0;
+            public double AvgSignal = -200.0;
+            public double PeakBinSignal = -200.0;
+            public bool Updated = false;
+        }
+
+        private sealed class clsTxReadingState
+        {
+            public double MicLevelDbm = -200.0;
+            public double PowerWatts = 0.0;
+            public double PeakPowerWatts = 0.0;
+            public double Swr = 1.0;
+            public bool Updated = false;
+        }
+
+        private readonly object _lock = new object();
+        private readonly clsRxReadingState[,] _rxChannelReadings = new clsRxReadingState[2, 2];
+        private readonly clsTxReadingState _txReadings = new clsTxReadingState();
+        private bool _rxSensorsEnabled = false;
+        private bool _txSensorsEnabled = false;
+        private int _rxIntervalMs = 200;
+        private int _txIntervalMs = 200;
+
+        public clsTCISensorManager()
+        {
+            for (int rx = 0; rx < 2; rx++)
+            {
+                for (int channel = 0; channel < 2; channel++)
+                {
+                    _rxChannelReadings[rx, channel] = new clsRxReadingState();
+                }
+            }
+        }
+
+        private static int clampIntervalMs(int intervalMs)
+        {
+            if (intervalMs < 30) return 30;
+            if (intervalMs > 1000) return 1000;
+            return intervalMs;
+        }
+
+        public int RxIntervalMs
+        {
+            get { lock (_lock) return _rxIntervalMs; }
+        }
+
+        public int TxIntervalMs
+        {
+            get { lock (_lock) return _txIntervalMs; }
+        }
+
+        public bool RxSensorsEnabled
+        {
+            get { lock (_lock) return _rxSensorsEnabled; }
+        }
+
+        public bool TxSensorsEnabled
+        {
+            get { lock (_lock) return _txSensorsEnabled; }
+        }
+
+        public void ConfigureRxSensors(bool enabled, int intervalMs)
+        {
+            lock (_lock)
+            {
+                _rxSensorsEnabled = enabled;
+                _rxIntervalMs = clampIntervalMs(intervalMs);
+                for (int rx = 0; rx < 2; rx++)
+                {
+                    for (int channel = 0; channel < 2; channel++)
+                    {
+                        clsRxReadingState state = _rxChannelReadings[rx, channel];
+                        state.Updated = false;
+                    }
+                }
+            }
+        }
+
+        public void ConfigureTxSensors(bool enabled, int intervalMs)
+        {
+            lock (_lock)
+            {
+                _txSensorsEnabled = enabled;
+                _txIntervalMs = clampIntervalMs(intervalMs);
+                _txReadings.Updated = false;
+            }
+        }
+
+        public bool RequiresRxChannelUpdate(int receiver, int channel)
+        {
+            lock (_lock)
+            {
+                if (!_rxSensorsEnabled) return false;
+                if (receiver < 0 || receiver > 1 || channel < 0 || channel > 1) return false;
+
+                clsRxReadingState state = _rxChannelReadings[receiver, channel];
+                return !state.Updated;
+            }
+        }
+
+        public bool RequiresTxUpdate()
+        {
+            lock (_lock)
+            {
+                return _txSensorsEnabled && !_txReadings.Updated;
+            }
+        }
+
+        public bool SensorRequiresUpdate(int receiver, Reading reading)
+        {
+            lock (_lock)
+            {
+                switch (reading)
+                {
+                    case Reading.AVG_SIGNAL_STRENGTH:
+                    case Reading.SIGNAL_MAX_BIN:
+                    case Reading.SIGNAL_STRENGTH:                    
+                        {
+                            int rx = receiver - 1;
+                            if (rx < 0 || rx > 1) return false;
+                            clsRxReadingState state = _rxChannelReadings[rx, 0];
+                            return _rxSensorsEnabled && !state.Updated;
+                        }
+                    case Reading.MIC:
+                    case Reading.PWR:
+                    case Reading.SWR:
+                        return _txSensorsEnabled && !_txReadings.Updated;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        public void SetRxChannelReading(int receiver, int channel, double signal, double avg_signal, double peak_bin_signal)
+        {
+            lock (_lock)
+            {
+                if (receiver < 0 || receiver > 1 || channel < 0 || channel > 1) return;
+
+                clsRxReadingState state = _rxChannelReadings[receiver, channel];
+                state.Signal = signal;
+                state.AvgSignal = avg_signal;
+                state.PeakBinSignal = peak_bin_signal;
+                state.Updated = true;
+            }
+        }
+
+        public void SetTxReadings(double micLevelDbm, double powerWatts, double peakPowerWatts, double swr)
+        {
+            lock (_lock)
+            {
+                _txReadings.MicLevelDbm = micLevelDbm;
+                _txReadings.PowerWatts = powerWatts;
+                _txReadings.PeakPowerWatts = peakPowerWatts;
+                _txReadings.Swr = swr;
+                _txReadings.Updated = true;
+            }
+        }
+
+        public bool TryGetRxChannelReadingForSend(int receiver, int channel, out double signal, out double avg_signal, out double peak_bin_signal)
+        {
+            lock (_lock)
+            {
+                signal = -200.0;
+                avg_signal = -200.0;
+                peak_bin_signal = -200.0;
+                if (!_rxSensorsEnabled) return false;
+                if (receiver < 0 || receiver > 1 || channel < 0 || channel > 1) return false;
+
+                clsRxReadingState state = _rxChannelReadings[receiver, channel];
+                if (!state.Updated) return false;
+
+                signal = state.Signal;
+                avg_signal = state.AvgSignal;
+                peak_bin_signal= state.PeakBinSignal;
+                return true;
+            }
+        }
+
+        public void ConsumeRxChannelReading(int receiver, int channel)
+        {
+            lock (_lock)
+            {
+                if (receiver < 0 || receiver > 1 || channel < 0 || channel > 1) return;
+
+                clsRxReadingState state = _rxChannelReadings[receiver, channel];
+                state.Updated = false;
+            }
+        }
+
+        public bool TryGetTxReadingsForSend(out double micLevelDbm, out double powerWatts, out double peakPowerWatts, out double swr)
+        {
+            lock (_lock)
+            {
+                micLevelDbm = -200.0;
+                powerWatts = 0.0;
+                peakPowerWatts = 0.0;
+                swr = 1.0;
+
+                if (!_txSensorsEnabled || !_txReadings.Updated) return false;
+
+                micLevelDbm = _txReadings.MicLevelDbm;
+                powerWatts = _txReadings.PowerWatts;
+                peakPowerWatts = _txReadings.PeakPowerWatts;
+                swr = _txReadings.Swr;
+                return true;
+            }
+        }
+
+        public void ConsumeTxReadings()
+        {
+            lock (_lock)
+            {
+                _txReadings.Updated = false;
+            }
         }
     }
 
@@ -558,6 +781,9 @@ namespace Thetis
         private bool m_tciPttActive = false;
         private int m_txQueuedComplexSamples = 0;
         private bool m_seenModernTxAudioNegotiation = false;
+        private readonly clsTCISensorManager m_sensorManager = new clsTCISensorManager();
+        private System.Threading.Timer m_tmRxSensors;
+        private System.Threading.Timer m_tmTxSensors;
         public TCPIPtciSocketListener(TcpClient client, Console c, TCPIPtciServer server, int rateLimit)
 		{
 			_console = c;
@@ -637,6 +863,56 @@ namespace Thetis
 
             //sendIFLimits(-halfSample, halfSample);
             sendIFLimits(-halfSample, halfSample); // sadly this is global in tci, so use rx1
+        }
+
+        internal bool RequiresRxSensorUpdate(int receiver, int channel)
+        {
+            return m_sensorManager.RequiresRxChannelUpdate(receiver, channel);
+        }
+
+        internal bool SensorRequiresUpdate(int receiver, Reading reading)
+        {
+            return m_sensorManager.SensorRequiresUpdate(receiver, reading);
+        }
+
+        internal bool RequiresTxSensorUpdate()
+        {
+            return m_sensorManager.RequiresTxUpdate();
+        }
+
+        internal void MeterReadingsChanged(int rx, bool tx, ref Dictionary<Reading, float> readings)
+        {
+            if (readings == null) return;
+
+            if (tx)
+            {
+                if (readings.TryGetValue(Reading.MIC, out float micLevel) &&
+                    readings.TryGetValue(Reading.PWR, out float power) &&
+                    readings.TryGetValue(Reading.SWR, out float swr))
+                {
+                    m_sensorManager.SetTxReadings(micLevel, power, power, swr);
+                }
+
+                return;
+            }
+
+            int receiver = rx - 1;
+            if (receiver < 0 || receiver > 1) return;
+
+            if (readings.TryGetValue(Reading.SIGNAL_STRENGTH, out float signal) && readings.TryGetValue(Reading.AVG_SIGNAL_STRENGTH, out float avg_signal) && readings.TryGetValue(Reading.SIGNAL_MAX_BIN, out float peak_bin_signal))
+            {
+                m_sensorManager.SetRxChannelReading(receiver, 0, signal, avg_signal, peak_bin_signal);
+            }
+        }
+
+        internal int MinimumRequiredRxSensorInterval()
+        {
+            return m_sensorManager.RxSensorsEnabled ? m_sensorManager.RxIntervalMs : int.MaxValue;
+        }
+
+        internal int MinimumRequiredTxSensorInterval()
+        {
+            return m_sensorManager.TxSensorsEnabled ? m_sensorManager.TxIntervalMs : int.MaxValue;
         }
 
         private int getPublishedIQSampleRate()
@@ -824,7 +1100,59 @@ namespace Thetis
 			sendMute(console.ThreadSafeTCIAccessor.MUT || (console.ThreadSafeTCIAccessor.RX2Enabled && console.ThreadSafeTCIAccessor.MUT2));
 			sendMuteRX(rx - 1, newState);
         }
-		public void MONChanged(bool newState)
+        public void NrChanged(int rx, int newNR)
+        {
+            if (m_disconnected) return;
+            bool enabled = newNR > 0;
+            sendNrEnable(rx - 1, enabled, false, newNR);
+            sendNrEnable(rx - 1, enabled, true, newNR);
+        }
+        public void AnfChanged(int rx, bool newState)
+        {
+            if (m_disconnected) return;
+            sendAnfEnable(rx - 1, newState);
+        }
+        public void RxAfGainChanged(int rx, bool is_subrx, int gain)
+        {
+            if (m_disconnected) return;
+            int chan = is_subrx ? 1 : 0;
+            double db = audioGainToDb(gain / 100f);
+            sendRxVolume(rx - 1, chan, db);
+        }
+        public void CTUNChanged(int rx, bool enabled)
+        {
+            if (m_disconnected) return;
+            sendCTUN(rx - 1, enabled);
+        }
+        public void TXProfileChanged(string profile)
+        {
+            if (m_disconnected) return;
+            sendTXProfile(profile);
+        }
+        public void TXProfilesChanged()
+        {
+            if (m_disconnected) return;
+            sendTXProfiles();
+        }
+        public void CalibrationChanged(int rx)
+        {
+            if (m_disconnected) return;
+
+            float meter_offset;
+            float display_offset;
+            float xvtr_gain_offset;
+            float offset_6m;
+            float tx_display_offset;
+
+            meter_offset = rx == 0 ? console.ThreadSafeTCIAccessor.RX1MeterCalOffset : console.ThreadSafeTCIAccessor.RX2MeterCalOffset;
+            display_offset = rx == 0 ? console.ThreadSafeTCIAccessor.RX1DisplayCalOffset : console.ThreadSafeTCIAccessor.RX2DisplayCalOffset;
+            xvtr_gain_offset = rx == 0 ? console.ThreadSafeTCIAccessor.RX1XVTRGainOffset : console.ThreadSafeTCIAccessor.RX2XVTRGainOffset;
+            offset_6m = rx == 0 ? console.ThreadSafeTCIAccessor.RX6mGainOffset_RX1 : console.ThreadSafeTCIAccessor.RX6mGainOffset_RX2;
+            tx_display_offset = console.ThreadSafeTCIAccessor.TXDisplayCalOffset;
+
+            sendCalibration(rx, meter_offset, display_offset, xvtr_gain_offset, offset_6m, tx_display_offset);
+        }
+        public void MONChanged(bool newState)
 		{
             if (m_disconnected) return;
 			sendMONEnable(newState);
@@ -1492,7 +1820,7 @@ namespace Thetis
 		{
             if (volume < -60f || volume > 0f) return;
 
-            string s = "mon_volume:" + volume.ToString("F1").ToLower() + ";";
+            string s = "mon_volume:" + volume.ToString("F1", CultureInfo.InvariantCulture).ToLower() + ";";
             sendTextFrame(s);
         }
 		private void sendTXFrequencyChanged(long new_frequency, Band new_band, bool rx2_enabled, bool tx_vfob)
@@ -1563,6 +1891,26 @@ namespace Thetis
 			string s = "rx_clicked_on_spot:" + rx.ToString() + "," + chan.ToString() + "," + callsign.Trim() + "," + frequency.ToString() + ";";
 			sendTextFrame(s);
 		}
+		private void sendRxSensors(int rx, double levelDbm)
+		{
+			sendTextFrame("rx_sensors:" + rx.ToString() + "," + levelDbm.ToString("F1", CultureInfo.InvariantCulture) + ";");
+		}
+		private void sendRxChannelSensors(int rx, int channel, double levelDbm, double avgLevelDbm, double peakBinDbm)
+		{
+			sendTextFrame("rx_channel_sensors:" + rx.ToString() + "," + channel.ToString() + "," + levelDbm.ToString("F1", CultureInfo.InvariantCulture) + ";");
+            sendTextFrame("rx_channel_sensors_ex:" + rx.ToString() + "," + channel.ToString() + "," + levelDbm.ToString("F1", CultureInfo.InvariantCulture) + "," + avgLevelDbm.ToString("F1", CultureInfo.InvariantCulture) + "," + peakBinDbm.ToString("F1", CultureInfo.InvariantCulture) + ";");
+        }
+		private void sendTxSensors(int rx, double micLevelDbm, double rmsPowerWatts, double peakPowerWatts, double swr)
+		{
+			string message = string.Format(
+				"tx_sensors:{0},{1:F1},{2:F1},{3:F1},{4:F1};",
+				rx,
+				micLevelDbm,
+				rmsPowerWatts,
+				peakPowerWatts,
+				swr);
+			sendTextFrame(message);
+		}
 		private void sendDDS(int rx, long ddsFreq = -1)
         {
 			if (ddsFreq == -1)
@@ -1623,11 +1971,39 @@ namespace Thetis
             sendRXEnable(0, !console.ThreadSafeTCIAccessor.MOX);
 			sendRXEnable(1, bRX2Enabled && !console.ThreadSafeTCIAccessor.MOX);
 
-			//lock
-			//TODO rx channel enable
-			//rit/xit
+            int rx1nr = console.ThreadSafeTCIAccessor.GetSelectedNR(1);
+            int rx2nr = console.ThreadSafeTCIAccessor.GetSelectedNR(2);
+            sendNrEnable(0, rx1nr > 0, false, rx1nr);
+            sendNrEnable(1, rx2nr > 0, false, rx2nr);
+            sendNrEnable(0, rx1nr > 0, true, rx1nr);
+            sendNrEnable(1, rx2nr > 0, true, rx2nr);
 
-			sendSplit(0, console.ThreadSafeTCIAccessor.VFOSplit);
+            sendAnfEnable(0, console.ThreadSafeTCIAccessor.GetANF(1));
+            sendAnfEnable(1, console.ThreadSafeTCIAccessor.GetANF(2));
+
+            double rx1vol = audioGainToDb(console.ThreadSafeTCIAccessor.RX0Gain / 100f);
+            double rx1Subvol = audioGainToDb(console.ThreadSafeTCIAccessor.RX1Gain / 100f);
+            double rx2vol = audioGainToDb(console.ThreadSafeTCIAccessor.RX2Gain / 100f);
+
+            sendRxVolume(0, 0, rx1vol);
+            sendRxVolume(0, 1, rx1Subvol);
+            sendRxVolume(1, 0, rx2vol);
+            sendRxVolume(1, 1, rx2vol);
+
+            sendCTUN(0, console.ThreadSafeTCIAccessor.GetCTUN(1));
+            sendCTUN(1, console.ThreadSafeTCIAccessor.GetCTUN(2));
+
+            sendTXProfiles();
+            sendTXProfile(console.ThreadSafeTCIAccessor.TXProfile);
+
+            CalibrationChanged(0);
+            CalibrationChanged(1);
+
+            //lock
+            //TODO rx channel enable
+            //rit/xit
+
+            sendSplit(0, console.ThreadSafeTCIAccessor.VFOSplit);
 			sendSplit(1, bRX2Enabled && console.ThreadSafeTCIAccessor.VFOSplit);
 
 			sendTXEnable(0, !console.ThreadSafeTCIAccessor.MOX);
@@ -1706,6 +2082,84 @@ namespace Thetis
 			Debug.Print("SENT INIT DATA");
             m_server?.RefreshStreamRunState();
 		}
+
+		private void setRxSensorsEnabled(bool enabled, int intervalMs, bool fireImmediately)
+		{
+			m_sensorManager.ConfigureRxSensors(enabled, intervalMs);
+
+			if (m_tmRxSensors != null)
+			{
+				m_tmRxSensors.Change(Timeout.Infinite, Timeout.Infinite);
+				m_tmRxSensors.Dispose();
+				m_tmRxSensors = null;
+			}
+
+			if (enabled)
+			m_tmRxSensors = new System.Threading.Timer(RxSensorsTimerCallback, null, fireImmediately ? 0 : m_sensorManager.RxIntervalMs, m_sensorManager.RxIntervalMs);
+		}
+
+		private void setTxSensorsEnabled(bool enabled, int intervalMs, bool fireImmediately)
+		{
+			m_sensorManager.ConfigureTxSensors(enabled, intervalMs);
+
+			if (m_tmTxSensors != null)
+			{
+				m_tmTxSensors.Change(Timeout.Infinite, Timeout.Infinite);
+				m_tmTxSensors.Dispose();
+				m_tmTxSensors = null;
+			}
+
+			if (enabled)
+			m_tmTxSensors = new System.Threading.Timer(TxSensorsTimerCallback, null, fireImmediately ? 0 : m_sensorManager.TxIntervalMs, m_sensorManager.TxIntervalMs);
+		}
+
+		private void RxSensorsTimerCallback(object state)
+		{
+			if (m_stopClient || m_disconnected) return;
+
+			bool rx2Enabled = false;
+			bool rx1SubEnabled = false;
+            try
+            {
+                rx2Enabled = console.ThreadSafeTCIAccessor.RX2Enabled;
+                rx1SubEnabled = !rx2Enabled && console.ThreadSafeTCIAccessor.GetSubRX(1);
+            }
+            catch
+            { }
+
+			if (m_sensorManager.TryGetRxChannelReadingForSend(0, 0, out double rx1Main_sig, out double rx1Main_avgsig, out double rx1Main_peak_bin_sig))
+			{
+			    sendRxSensors(0, rx1Main_sig);
+			    sendRxChannelSensors(0, 0, rx1Main_sig, rx1Main_avgsig, rx1Main_peak_bin_sig);
+			    m_sensorManager.ConsumeRxChannelReading(0, 0);
+		    }
+
+			if (rx1SubEnabled && m_sensorManager.TryGetRxChannelReadingForSend(0, 1, out double rx1Sub_sig, out double rx1Sub_avgsig, out double rx1Sub_peak_bin_sig))
+		    {
+				sendRxChannelSensors(0, 1, rx1Sub_sig, rx1Sub_avgsig, rx1Sub_peak_bin_sig);
+				m_sensorManager.ConsumeRxChannelReading(0, 1);
+			}
+
+			if (rx2Enabled && m_sensorManager.TryGetRxChannelReadingForSend(1, 0, out double rx2Main_sig, out double rx2Miain_avgsig, out double rx2Main_peak_bin_sig))
+			{
+				sendRxSensors(1, rx2Main_sig);
+				sendRxChannelSensors(1, 0, rx2Main_sig, rx2Miain_avgsig, rx2Main_peak_bin_sig);
+				m_sensorManager.ConsumeRxChannelReading(1, 0);
+			}
+		}
+
+		private void TxSensorsTimerCallback(object state)
+		{
+			if (m_stopClient || m_disconnected) return;
+
+			if (m_sensorManager.TryGetTxReadingsForSend(out double micLevelDbm, out double powerWatts, out double peakPowerWatts, out double swr))
+			{
+			    sendTxSensors(0, micLevelDbm, powerWatts, peakPowerWatts, swr);
+			    sendTxSensors(1, micLevelDbm, powerWatts, peakPowerWatts, swr);
+				m_sensorManager.ConsumeTxReadings();
+			}
+		}
+
 		private int findEndOfHeader(byte[] bytes)
 		{
 			int nFind = 0;
@@ -1948,6 +2402,23 @@ namespace Thetis
                     m_tmCentretimer.Change(Timeout.Infinite, Timeout.Infinite);
                     m_tmCentretimer = null;
                 }
+                if (m_tmTXFrequency != null)
+                {
+                    m_tmTXFrequency.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_tmTXFrequency = null;
+                }
+                if (m_tmRxSensors != null)
+                {
+                    m_tmRxSensors.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_tmRxSensors.Dispose();
+                    m_tmRxSensors = null;
+                }
+                if (m_tmTxSensors != null)
+                {
+                    m_tmTxSensors.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_tmTxSensors.Dispose();
+                    m_tmTxSensors = null;
+                }
 
                 if (m_stream != null)
                 {
@@ -2108,10 +2579,10 @@ namespace Thetis
                 Buffer.BlockCopy(bytes, dataIndex, payload, 0, dataLength);
                 handleBinaryFrame(payload);
             }
-			else
-			{
-				Debug.Print("UNNOWN OPCODE " + opcode.ToString());
-			}
+			//else
+			//{
+			//	Debug.Print("UNNOWN OPCODE " + opcode.ToString());
+			//}
 		}
 		private void handleSetInFocus()
         {
@@ -3067,8 +3538,9 @@ namespace Thetis
 			bool enable = false;
 
 			bool bOK = int.TryParse(args[0], out rx);
+            if (rx < 0 || rx > 1) return;
 
-			if (args.Length == 2)
+            if (args.Length == 2)
 			{				
 				if (bOK)
 					bOK = bool.TryParse(args[1], out enable);
@@ -3095,6 +3567,283 @@ namespace Thetis
                 }
 			}
 		}
+
+		private void handleRxSensorsEnable(string[] args)
+		{
+			if (args == null || args.Length < 1 || args.Length > 2) return;
+			if (!bool.TryParse(args[0], out bool enabled)) return;
+
+			int intervalMs = m_sensorManager.RxIntervalMs;
+			if (args.Length == 2 && !int.TryParse(args[1], out intervalMs))
+				return;
+
+			setRxSensorsEnabled(enabled, intervalMs, enabled);
+		}
+        private void handleTxSensorsEnable(string[] args)
+		{
+			if (args == null || args.Length < 1 || args.Length > 2) return;
+			if (!bool.TryParse(args[0], out bool enabled)) return;
+
+			int intervalMs = m_sensorManager.TxIntervalMs;
+			if (args.Length == 2 && !int.TryParse(args[1], out intervalMs))
+				return;
+
+			setTxSensorsEnabled(enabled, intervalMs, enabled);
+		}
+        //
+        private void sendNrEnable(int rx, bool enabled, bool is_extended, int nr)
+        {
+            string s;
+            if(is_extended)
+                s = "rx_nr_enable_ex:" + rx.ToString() + "," + enabled.ToString().ToLower() + "," + nr.ToString() + ";";
+            else
+                s = "rx_nr_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+
+            sendTextFrame(s);
+        }
+        private void sendAnfEnable(int rx, bool enabled)
+        {
+            string s = "rx_anf_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+
+            sendTextFrame(s);
+        }
+        private void handleNrEnable(string[] args, bool is_extended)
+        {
+            if (args == null || args.Length < 1 || is_extended && args.Length < 3) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            int nr = 1;
+            bool enable = false;
+            if (args.Length == 1)
+            {
+                //get
+                nr = console.ThreadSafeTCIAccessor.GetSelectedNR(rx + 1);
+                enable = nr > 0;
+                sendNrEnable(rx, enable, false, nr);
+                sendNrEnable(rx, enable, true, nr);
+            }
+            else
+            {
+                //set
+                if (!bool.TryParse(args[1], out enable)) return;
+                if (is_extended && !int.TryParse(args[2], out nr)) return;
+                if (nr < 1 || nr > 4) return;
+
+                if (enable)
+                {
+                    console.ThreadSafeTCIAccessor.SelectNR(rx + 1, false, is_extended ? nr : 1);
+                }
+                else
+                {
+                    console.ThreadSafeTCIAccessor.SelectNR(rx + 1, false, 0);
+                }                
+            }
+        }
+        private void handleAnfEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            bool enable = false;
+            if (args.Length == 1)
+            {
+                // get
+                enable = console.ThreadSafeTCIAccessor.GetANF(rx + 1);
+                sendAnfEnable(rx, enable);
+            }
+            else
+            {
+                //set
+                if (!bool.TryParse(args[1], out enable)) return;
+
+                console.ThreadSafeTCIAccessor.SetANF(rx + 1, enable);                
+            }            
+        }
+        private double dbToAudioGain(double db)
+        {
+            if (db <= -60.0)
+                return 0.0;
+
+            if (db >= 0.0)
+                return 1.0;
+
+            return Math.Pow(10.0, db / 20.0);
+        }
+
+        private double audioGainToDb(double gain)
+        {
+            if (gain <= 0.0)
+                return -60.0;
+
+            if (gain >= 1.0)
+                return 0.0;
+
+            return 20.0 * Math.Log10(gain);
+        }
+        private void sendRxVolume(int rx, int chan, double volume)
+        {
+            string s = "rx_volume:" + rx.ToString() + "," + chan.ToString() + "," + volume.ToString("F2", CultureInfo.InvariantCulture) + ";";
+
+            sendTextFrame(s);
+        }
+        private void handleRxVolume(string[] args)
+        {
+            if (args == null || args.Length < 2 || args.Length > 3) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+            if (!int.TryParse(args[1], out int chan)) return;
+            if (chan < 0 || chan > 1) return;
+
+            int vol = 0;
+
+            if (args.Length == 2)
+            {
+                //get
+                switch (rx + 1)
+                {
+                    case 1:
+                        if (chan == 0)
+                        {
+                            vol = console.ThreadSafeTCIAccessor.RX0Gain; // such horrible naming
+                        }
+                        else if (chan == 1)
+                        {
+                            vol = console.ThreadSafeTCIAccessor.RX1Gain;
+                        }
+                        else
+                            return;
+                        break;
+                    case 2:
+                        vol = console.ThreadSafeTCIAccessor.RX2Gain; // no sub
+                        break;
+                }
+                double perc = vol / 100f;
+                double db = audioGainToDb(perc);
+                sendRxVolume(rx, chan, db);
+            }
+            else
+            {
+                //set
+                if (!double.TryParse(args[2], out double db)) return;
+
+                double ag = dbToAudioGain(db) * 100f;              
+
+                switch (rx + 1)
+                {
+                    case 1:
+                        if (chan == 0)
+                        {
+                            console.ThreadSafeTCIAccessor.RX0Gain = (int)ag;
+                        }
+                        else if (chan == 1)
+                        {
+                            console.ThreadSafeTCIAccessor.RX1Gain = (int)ag;
+                        }
+                        else
+                            return;
+                        break;
+                    case 2:
+                        console.ThreadSafeTCIAccessor.RX2Gain = (int)ag;
+                        break;
+                }
+            }
+        }
+        private void sendCTUN(int rx, bool enabled)
+        {
+            string s = "rx_ctun_ex:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+
+            sendTextFrame(s);
+        }
+        private void handleCTUN(string[] args)
+        {
+            if(args== null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            bool enable = false;
+            if(args.Length == 1)
+            {
+                //get
+                enable = console.ThreadSafeTCIAccessor.GetCTUN(rx + 1);
+                sendCTUN(rx, enable);
+            }
+            else
+            {
+                //set
+                if (!bool.TryParse(args[1], out enable)) return;
+                console.ThreadSafeTCIAccessor.SetCTUN(rx + 1, enable);
+            }
+        }
+        private void sendTXProfile(string prof)
+        {
+            string s = "tx_profile_ex:" + prof + ";";
+
+            sendTextFrame(s);
+        }
+        private void sendTXProfiles()
+        {
+            // each profile surrounded with {} and , separated
+            if (console == null || console.IsSetupFormNull) return;
+
+            string[] profiles = console.ThreadSafeTCIAccessor.SetupForm.GetTXProfileStrings();
+            string formatted_profiles = string.Join(",", profiles);
+            string s = "tx_profiles_ex:" + formatted_profiles + ";";
+
+            sendTextFrame(s);
+        }
+        private void handleTXProfile(string[] args)
+        {
+            if (args == null || args.Length > 1) return;
+
+            if (args.Length == 0)
+            {
+                //get current txprofille
+                string prof = console.ThreadSafeTCIAccessor.TXProfile;
+                sendTXProfile(prof);
+            }
+            else
+            {
+                //set
+                console.ThreadSafeTCIAccessor.SafeTXProfileSet(args[1]);
+            }
+        }
+        private void handleTXProfiles()
+        {
+            sendTXProfiles();
+        }
+        private void handleShutdown()
+        {
+            if (console.ThreadSafeTCIAccessor.InvokeRequired)
+            {
+                console.ThreadSafeTCIAccessor.BeginInvoke(new MethodInvoker(() =>
+                {
+                    console.ThreadSafeTCIAccessor.Close();
+                }));
+            }
+            else
+            {
+                console.ThreadSafeTCIAccessor.Close();
+            }
+        }
+        private void sendCalibration(int rx, float meter, float display, float xvtr, float six_meter, float tx_display_offset)
+        {
+            if (rx < 0 || rx > 1) return;
+
+            string s = $"calibration_ex:{rx},{meter.ToString("F6", CultureInfo.InvariantCulture)}," +
+                $"{display.ToString("F6", CultureInfo.InvariantCulture)},{xvtr.ToString("F6", CultureInfo.InvariantCulture)}," +
+                $"{six_meter.ToString("F6", CultureInfo.InvariantCulture)},{tx_display_offset.ToString("F6", CultureInfo.InvariantCulture)};";
+
+            sendTextFrame(s);
+        }
+        private void handleCalibration(string[] args)
+        {
+            if (args.Length != 1) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            CalibrationChanged(rx);
+        }
+        //
 
         private List<string> splitTextCommands(string msg)
         {
@@ -3330,6 +4079,34 @@ namespace Thetis
                     case "rx_channel_enable":
                         handleRxChannelEnable(args);
                         break;
+                    case "rx_sensors_enable":
+                        handleRxSensorsEnable(args);
+                        break;
+                    case "tx_sensors_enable":
+                        handleTxSensorsEnable(args);
+                        break;
+                    case "rx_nr_enable":
+                        handleNrEnable(args, false);
+                        break;
+                    case "rx_nr_enable_ex":
+                        handleNrEnable(args, true);
+                        break;
+                    case "rx_anf_enable":
+                        handleAnfEnable(args);
+                        break;
+                    case "rx_volume":
+                        handleRxVolume(args);
+                        break;
+                    case "rx_ctun_ex":
+                        handleCTUN(args); // bespoke thetis cmd for ctun
+                        break;
+                    case "tx_profile_ex":
+                        handleTXProfile(args); // bespoke thetis cmd to select tx profile
+                        break;
+                    case "calibration_ex":
+                        handleCalibration(args); // bespoke thetis cmd to get calibration data
+                        break;
+
                 }
             }
             else if (parts.Length == 1)
@@ -3367,6 +4144,12 @@ namespace Thetis
                         break;
                     case "spot_clear":
                         handleSpotClear();
+                        break;
+                    case "tx_profiles_ex":
+                        handleTXProfiles(); // bespoke thetis cmd to send out tx profiles list
+                        break;
+                    case "shutdown_ex":
+                        handleShutdown(); // bespoke thetis cmd  to do a full shutdown
                         break;
                 }
             }
@@ -3740,8 +4523,8 @@ namespace Thetis
                 {
                     releaseOwner = m_tciPttActive;
                     m_tciPttActive = false;
+                }
             }
-        }
 
             if (releaseOwner)
             {
@@ -4084,22 +4867,22 @@ namespace Thetis
             if (args.Length != 1) return;
             lock (m_objStreamLock)
             {
-            switch (args[0].Trim().ToLower())
-            {
-                case "int16":
-                    m_audioSampleType = TCISampleType.INT16;
-                    break;
-                case "int24":
-                    m_audioSampleType = TCISampleType.INT24;
-                    break;
-                case "int32":
-                    m_audioSampleType = TCISampleType.INT32;
-                    break;
-                case "float32":
-                default:
-                    m_audioSampleType = TCISampleType.FLOAT32;
-                    break;
-            }
+                switch (args[0].Trim().ToLower())
+                {
+                    case "int16":
+                        m_audioSampleType = TCISampleType.INT16;
+                        break;
+                    case "int24":
+                        m_audioSampleType = TCISampleType.INT24;
+                        break;
+                    case "int32":
+                        m_audioSampleType = TCISampleType.INT32;
+                        break;
+                    case "float32":
+                    default:
+                        m_audioSampleType = TCISampleType.FLOAT32;
+                        break;
+                }
 
                 m_seenModernTxAudioNegotiation = true;
             }
@@ -4186,11 +4969,6 @@ namespace Thetis
         {
             TCPIPtciSocketListener.VFOData vfod = (TCPIPtciSocketListener.VFOData)o;
             centreFrequencyChange(vfod);
-        }
-        private void TXFrequencycallback(Object o)
-        {
-            TCPIPtciSocketListener.VFOData vfod = (TCPIPtciSocketListener.VFOData)o;
-            TXFrequencyChange(vfod);
         }
         public void VFOChange(VFOData vfod)
         {
@@ -4491,6 +5269,18 @@ namespace Thetis
 					console.ThreadSafeTCIAccessor.MONChangedHandlers += OnMONChanged;
                     console.ThreadSafeTCIAccessor.MONVolumeChangedHandlers += OnMONVolumeChanged;
 					console.ThreadSafeTCIAccessor.TXFrequncyChangedHandlers += OnTXFrequencyChanged;
+                    console.ThreadSafeTCIAccessor.MeterReadingsChangedHandlers += OnMeterReadingsChanged;
+                    console.ThreadSafeTCIAccessor.NRChangedHandlers += OnNrChanged;
+                    console.ThreadSafeTCIAccessor.ANFChangedHandlers += OnAnfChanged;
+                    console.ThreadSafeTCIAccessor.RXGainChangedHandlers += OnRxAfGainChanged;
+                    console.ThreadSafeTCIAccessor.CTUNChangedHandlers += OnCTUNChanged;
+                    console.ThreadSafeTCIAccessor.TXProfileChangedHandlers += OnTXProfileChanged;
+                    console.ThreadSafeTCIAccessor.TXProfilesChangedHandlers += OnTXProfilesChanged;
+
+                    console.ThreadSafeTCIAccessor.MeterCalOffsetChangedHandlers += OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.DisplayOffsetChangedHandlers += OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.XvtrGainOffsetChangedHandlers += OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.Rx6mOffsetChangedHandlers += OnCalibrationChanged;
 
                     m_bDelegatesAdded = true;
 				}
@@ -4526,7 +5316,8 @@ namespace Thetis
 		private string m_sLastError = "";
 		public string LastError
         {
-			get {
+			get 
+            {
 				string s = m_sLastError;
 				m_sLastError = "";
 				return s; 
@@ -4560,6 +5351,18 @@ namespace Thetis
                     console.ThreadSafeTCIAccessor.MONChangedHandlers -= OnMONChanged;
                     console.ThreadSafeTCIAccessor.MONVolumeChangedHandlers -= OnMONVolumeChanged;
                     console.ThreadSafeTCIAccessor.TXFrequncyChangedHandlers -= OnTXFrequencyChanged;
+                    console.ThreadSafeTCIAccessor.MeterReadingsChangedHandlers -= OnMeterReadingsChanged;
+                    console.ThreadSafeTCIAccessor.NRChangedHandlers -= OnNrChanged;
+                    console.ThreadSafeTCIAccessor.ANFChangedHandlers -= OnAnfChanged;
+                    console.ThreadSafeTCIAccessor.RXGainChangedHandlers -= OnRxAfGainChanged;
+                    console.ThreadSafeTCIAccessor.CTUNChangedHandlers -= OnCTUNChanged;
+                    console.ThreadSafeTCIAccessor.TXProfileChangedHandlers -= OnTXProfileChanged;
+                    console.ThreadSafeTCIAccessor.TXProfilesChangedHandlers -= OnTXProfilesChanged;
+
+                    console.ThreadSafeTCIAccessor.MeterCalOffsetChangedHandlers -= OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.DisplayOffsetChangedHandlers -= OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.XvtrGainOffsetChangedHandlers -= OnCalibrationChanged;
+                    console.ThreadSafeTCIAccessor.Rx6mOffsetChangedHandlers -= OnCalibrationChanged;
 
                     m_bDelegatesAdded = false;
 				}
@@ -4604,7 +5407,8 @@ namespace Thetis
 
 		public int ClientsConnected
         {
-            get {				
+            get 
+            {				
 				int nRet = 0;
 				lock (m_objLocker)
 				{
@@ -5023,6 +5827,90 @@ namespace Thetis
                 }
             }
         }
+        private void OnNrChanged(int rx, int old_nr, int new_nr)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.NrChanged(rx, new_nr);
+                }
+            }
+        }
+        private void OnAnfChanged(int rx, bool old_state, bool new_state)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.AnfChanged(rx, new_state);
+                }
+            }
+        }
+        private void OnRxAfGainChanged(int rx, bool is_subrx, int old_gain, int new_gain)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.RxAfGainChanged(rx, is_subrx, new_gain);
+                }
+            }
+        }
+        private void OnCTUNChanged(int rx, bool oldCTUN, bool newCTUN, Band band)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CTUNChanged(rx, newCTUN);
+                }
+            }
+        }
+        private void OnTXProfileChanged(string old_name, string new_name)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.TXProfileChanged(new_name);
+                }
+            }
+        }
+        private void OnTXProfilesChanged()
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.TXProfilesChanged();
+                }
+            }
+        }
+        private void OnCalibrationChanged(int rx, float oldcal, float newcal)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CalibrationChanged(rx);
+                }
+            }
+        }
         private void OnMONChanged(bool oldState, bool newState)
         {
             lock (m_objLocker)
@@ -5049,23 +5937,24 @@ namespace Thetis
         }
 		private void OnTXFrequencyChanged(double old_frequency, double new_frequency, Band old_band, Band new_band, bool rx2_enabled, bool tx_vfob, double centre_freq)
 		{
-			TCPIPtciSocketListener.VFOData vfod = new TCPIPtciSocketListener.VFOData()
-			{
-				cen = false,
-				centreMHz = -1,
-				rx = -1,
-				freqMHz = new_frequency,
-				offsetHz = -1,
-				chan = -1,
-				duplicate_tochan = -1,
-				replace_if_duplicated = false,
-				sendIF = false,
+            TCPIPtciSocketListener.VFOData vfod = new TCPIPtciSocketListener.VFOData()
+            {
+                cen = false,
+                centreMHz = -1,
+                //rx = -1,
+                rx = rx2_enabled && tx_vfob ? 1 : 0,
+                freqMHz = new_frequency,
+                offsetHz = -1,
+                chan = -1,
+                duplicate_tochan = -1,
+                replace_if_duplicated = false,
+                sendIF = false,
 
-				SendTXInfo = true,
-				TXfreqBand = new_band,
+                SendTXInfo = true,
+                TXfreqBand = new_band,
                 RX2EnabledForTX = rx2_enabled,
-				TXVFOB = tx_vfob
-			};
+                TXVFOB = tx_vfob
+            };
 
             lock (m_objLocker)
             {
@@ -5074,6 +5963,18 @@ namespace Thetis
                 foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
                 {
                     socketListener.TXFrequencyChange(vfod);
+                }
+            }
+        }
+        private void OnMeterReadingsChanged(int rx, bool tx, ref Dictionary<Reading, float> readings)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.MeterReadingsChanged(rx, tx, ref readings);
                 }
             }
         }
@@ -5154,6 +6055,78 @@ namespace Thetis
                     socketListener.PublishRxAudioSamples(receiver, sampleRate, left, right, samples);
                 }
             }
+        }
+
+        public bool RequiresRxSensorUpdate(int receiver, int channel)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return false;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    if (socketListener != null && socketListener.RequiresRxSensorUpdate(receiver, channel))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool SensorRequiresUpdate(int receiver, Reading reading)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return false;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    if (socketListener != null && socketListener.SensorRequiresUpdate(receiver, reading))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public int MinimumRequiredRxSensorInterval()
+        {
+            int interval = int.MaxValue;
+
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return interval;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    if (socketListener == null) continue;
+
+                    int listenerInterval = socketListener.MinimumRequiredRxSensorInterval();
+                    if (listenerInterval < interval) interval = listenerInterval;
+                }
+            }
+
+            return interval;
+        }
+
+        public int MinimumRequiredTxSensorInterval()
+        {
+            int interval = int.MaxValue;
+
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return interval;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    if (socketListener == null) continue;
+
+                    int listenerInterval = socketListener.MinimumRequiredTxSensorInterval();
+                    if (listenerInterval < interval) interval = listenerInterval;
+                }
+            }
+
+            return interval;
         }
 
         private TCPIPtciSocketListener GetActiveTxAudioListener()
