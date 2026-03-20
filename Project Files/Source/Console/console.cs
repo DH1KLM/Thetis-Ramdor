@@ -1127,22 +1127,26 @@ namespace Thetis
             //_rx1SpectrumTestForm = _spectrumProcessor.ShowReceiverTestForm(0, -130, -40);
             //_rx2SpectrumTestForm = _spectrumProcessor.ShowReceiverTestForm(1, -130, -40);
 
-            ////test full auto
-            ////x = maximum ADC magnitude seen during the last 200ms period, from 0 to 32768
-            ////U = upper threshold where protective action begins, 25000(configurable)
-            ////L = lower threshold where it is safe to start reducing attenuation again, say 15000(configurable)
-            ////- if overload or x > U then apply +3dB attenuation
-            ////-f_old = (0.9 * f_old) + (0.1 * x)
-            ////- if f_old < L then remove 1dB attenuation
-            ////-otherwise hold current attenuation
+            //test full auto
+            //x = maximum ADC magnitude seen during the last 200ms period, from 0 to 32768
+            //U = upper threshold where protective action begins, 25000(configurable)
+            //L = lower threshold where it is safe to start reducing attenuation again, say 15000(configurable)
+            //- if overload or x > U then apply +3dB attenuation
+            //-f_old = (0.9 * f_old) + (0.1 * x)
+            //- if f_old < L then remove 1dB attenuation
+            //-otherwise hold current attenuation
 
             //void timerTick_RX1_FullAutoAtt(object state)
-            //{
+            //{       
+            //    if(this.IsDisposed || this.Disposing || !this.IsHandleCreated) return;
+
             //    if (this.InvokeRequired)
             //    {
             //        this.Invoke((Action)(() => timerTick_RX1_FullAutoAtt(state)));
             //        return;
             //    }
+
+            //    if (!chkTestAtt.Checked) return;
 
             //    int adc_oload_num = 0;
             //    bool got_oload_info;
@@ -1158,7 +1162,7 @@ namespace Thetis
 
             //    bool overloaded = false;
             //    if (got_oload_info)
-            //    { 
+            //    {
             //        for (int i = 0; i < 1; i++)
             //        {
             //            overloaded |= ((adc_oload_num >> i) & 1) != 0;
@@ -1169,7 +1173,7 @@ namespace Thetis
 
             //    bool atted = false;
             //    int satt = RX1AttenuatorData;
-            //    int tmpatt = satt;                
+            //    int tmpatt = satt;
 
             //    if (adcMag > 25000 || overloaded)
             //    {
@@ -1177,14 +1181,14 @@ namespace Thetis
             //        atted = true;
             //    }
 
-            //    _full_auto_att_running_mag = ((1.0f - _full_auto_att_alpha) * _full_auto_att_running_mag) + (_full_auto_att_alpha * adcMag);              
+            //    _full_auto_att_running_mag = ((1.0f - _full_auto_att_alpha) * _full_auto_att_running_mag) + (_full_auto_att_alpha * adcMag);
 
             //    if (!atted && _full_auto_att_running_mag < 15000) tmpatt--;
 
             //    if (tmpatt < 0) tmpatt = 0;
             //    if (tmpatt > 31) tmpatt = 31;
 
-            //    if(tmpatt != satt) RX1AttenuatorData = tmpatt;
+            //    if (tmpatt != satt) RX1AttenuatorData = tmpatt;
             //}
 
             //_full_auto_att_timer = new System.Threading.Timer(timerTick_RX1_FullAutoAtt, null, 0, 200);
@@ -11765,27 +11769,27 @@ namespace Thetis
                 float oldData = _rx1_xvtr_gain_offset;
                 _rx1_xvtr_gain_offset = value;
                 UpdateRX1DisplayOffsets();
-                if (_rx1_xvtr_gain_offset != oldData) XvtrGainOffsetChangedHandlers?.Invoke(1, oldData, _rx1_meter_cal_offset);
+                if (_rx1_xvtr_gain_offset != oldData) XvtrGainOffsetChangedHandlers?.Invoke(1, oldData, _rx1_xvtr_gain_offset);
             }
         }
 
-        private float rx2_xvtr_gain_offset;						// gain offset as entered on the xvtr form
+        private float _rx2_xvtr_gain_offset;						// gain offset as entered on the xvtr form
         public float RX2XVTRGainOffset
         {
-            get { return rx2_xvtr_gain_offset; }
+            get { return _rx2_xvtr_gain_offset; }
             set
             {
-                float oldData = rx2_xvtr_gain_offset;
-                rx2_xvtr_gain_offset = value;
+                float oldData = _rx2_xvtr_gain_offset;
+                _rx2_xvtr_gain_offset = value;
                 UpdateRX2DisplayOffsets();
-                if (rx2_xvtr_gain_offset != oldData) XvtrGainOffsetChangedHandlers?.Invoke(2, oldData, rx2_xvtr_gain_offset);
+                if (_rx2_xvtr_gain_offset != oldData) XvtrGainOffsetChangedHandlers?.Invoke(2, oldData, _rx2_xvtr_gain_offset);
             }
         }
 
         private float _rx_6m_gain_offset_rx1 = 13;
         public float RX6mGainOffset_RX1
         {
-            //NOTE: this is the +ve 6m gain value from setup, a -ve version of this is assigned to RX1_6mGainOffset in txtVFOAFreq_LostFocus
+            //NOTE: this is the +ve 6m gain value from setup, a -ve version of this is assigned to RX1_6mGainOffset in txtVFOAFreq_LostFocus, what a complete bodge by someone
             get { return _rx_6m_gain_offset_rx1; }
             set
             {
@@ -11798,7 +11802,7 @@ namespace Thetis
         private float rx_6m_gain_offset_rx2 = 13;
         public float RX6mGainOffset_RX2
         {
-            //NOTE: this is the +ve 6m gain value from setup, a -ve version of this is assigned to RX2_6mGainOffset in txtVFOBFreq_LostFocus
+            //NOTE: this is the +ve 6m gain value from setup, a -ve version of this is assigned to RX2_6mGainOffset in txtVFOBFreq_LostFocus, what a complete bodge by someone
             get { return rx_6m_gain_offset_rx2; }
             set
             {
@@ -12363,6 +12367,44 @@ namespace Thetis
                 if (old_profile != _tx_profile)
                 {
                     TXProfileChangedHandlers?.Invoke(old_profile, _tx_profile);
+                }
+            }
+        }
+        public void SafeTXProfileSet(string profile)
+        {
+            ComboBox combo = null;
+
+            switch (_rx1_dsp_mode)
+            {
+                case DSPMode.DIGL:
+                case DSPMode.DIGU:
+                    combo = comboDigTXProfile;
+                    break;
+
+                case DSPMode.FM:
+                    combo = comboFMTXProfile;
+                    break;
+
+                case DSPMode.AM:
+                case DSPMode.SAM:
+                    combo = comboAMTXProfile;
+                    break;
+
+                default:
+                    combo = comboTXProfile;
+                    break;
+            }
+
+            if (combo == null || string.IsNullOrEmpty(profile))
+                return;
+
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                object item = combo.Items[i];
+                if (item != null && string.Equals(item.ToString(), profile, StringComparison.Ordinal))
+                {
+                    TXProfile = profile;
+                    return;
                 }
             }
         }
@@ -20968,7 +21010,7 @@ namespace Thetis
             }
             else //rx2
             {
-                fOffset = _rx2_meter_cal_offset + rx2_xvtr_gain_offset;
+                fOffset = _rx2_meter_cal_offset + _rx2_xvtr_gain_offset;
 
                 if (HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
@@ -20980,6 +21022,11 @@ namespace Thetis
         public float RXOffset(int rx)
         {
             return RXPreampOffset(rx) + RXCalibrationOffset(rx);
+        }
+
+        public float TXDisplayCalOffset
+        {
+            get { return Display.TXDisplayCalOffset; }
         }
 
         // Added 6/11/05 BT to support CAT //[2.10.3.11]MW0LGE included setter
@@ -36428,6 +36475,9 @@ namespace Thetis
             }
         }
 
+        private int _old_rx1_gain = -1;
+        private int _old_rx1sub_gain = -1;
+        private int _old_rx2_gain = -1;
         private void ptbRX0Gain_Scroll(object sender, System.EventArgs e)
         {
             lblRX1Vol.Text = "Vol";
@@ -36460,6 +36510,13 @@ namespace Thetis
             Midi2Cat.SendUpdateToMidi(CatCmd.VolumeVfoA_inc, pct);
             if (sliderForm != null)
                 sliderForm.RX1Gain = ptbRX0Gain.Value;
+
+            int gain = ptbRX0Gain.Value;
+            if (gain != _old_rx1_gain)
+            {
+                RXGainChangedHandlers?.Invoke(1, false, _old_rx1_gain, gain);
+                _old_rx1_gain = gain;
+            }
         }
 
         private void ptbRX1Gain_Scroll(object sender, System.EventArgs e)
@@ -36484,6 +36541,12 @@ namespace Thetis
             if (sliderForm != null)
                 sliderForm.SubRXGain = ptbRX1Gain.Value;
 
+            int gain = ptbRX1Gain.Value;
+            if (gain != _old_rx1sub_gain)
+            {
+                RXGainChangedHandlers?.Invoke(1, true, _old_rx1sub_gain, gain);
+                _old_rx1sub_gain = gain;
+            }
         }
 
         #endregion
@@ -36569,7 +36632,8 @@ namespace Thetis
             //{
             //    WaveForm.QuickPlay = false;
             //    ckQuickPlay.BackColor = SystemColors.Control;
-            //}            
+            //}
+            
             if (!ckQuickPlay.Enabled) return; // leave if this function called direct
             if (ckQuickPlay.Checked)
             {
@@ -36614,6 +36678,7 @@ namespace Thetis
             //    if (!_updated_from_wave_form) WaveForm.QuickRec = false;
             //    ckQuickRec.BackColor = SystemColors.Control;
             //}
+
             if (!ckQuickRec.Enabled) return; // leave if this function called direct
             if (ckQuickRec.Checked)
             {
@@ -38402,6 +38467,14 @@ namespace Thetis
             Midi2Cat.SendUpdateToMidi(CatCmd.VolumeVfoB_inc, pct);
             if (sliderForm != null)
                 sliderForm.RX2Gain = ptbRX2Gain.Value;
+
+            int gain = ptbRX2Gain.Value;
+            if (gain != _old_rx2_gain)
+            {
+                RXGainChangedHandlers?.Invoke(2, false, _old_rx2_gain, gain);
+                RXGainChangedHandlers?.Invoke(2, true , _old_rx2_gain, gain); // no sub rx on 2, send anyway
+                _old_rx2_gain = gain;
+            }
         }
 
         private void chkRX2Mute_CheckedChanged(object sender, System.EventArgs e)
@@ -43062,7 +43135,11 @@ namespace Thetis
             cat_rx2_nr_status = 0;
             cat_rx2_nr2_status = 0;
 
-            switch (_nr_selected[rx - 1])
+            int nr = _nr_selected[rx - 1];
+            if (nr < 0) nr = 0;
+            if (nr > 4) nr = 4;
+
+            switch (nr)
             {
                 case 0: // all off
                     rad.RXANR4Run = 0;
@@ -44680,6 +44757,7 @@ namespace Thetis
         public delegate void TXFiltersChanged(int low, int high);
         public delegate void PAProfileChanged(string old_profile_name, string new_profile_name);
         public delegate void TXProfileChanged(string old_name, string new_name);
+        public delegate void TXProfilesChanged();
 
         public delegate void RXSpecGridMinMaxChanged(int rx, int min, int max);
         public delegate void TXSpecGridMinMaxChanged(int min, int max);
@@ -44733,6 +44811,7 @@ namespace Thetis
         public delegate void CWXShown(bool shown);
         public delegate void GlobalKeyPress(Keys keycode);
         public delegate void DarkModeChanged(bool dark_mode);
+        public delegate void RXGainChanged(int rx, bool is_subrx, int old_gain, int new_gain);
 
         public BandPreChange BandPreChangeHandlers; // when someone clicks a band button, before a change is made
         public BandNoChange BandNoChangeHandlers;
@@ -44819,6 +44898,7 @@ namespace Thetis
         public TXFiltersChanged TXFiltersChangedHandlers;
 
         public TXProfileChanged TXProfileChangedHandlers;
+        public TXProfilesChanged TXProfilesChangedHandlers;
 
         public RXSpecGridMinMaxChanged RXSpecGridMinMaxChangedHandlers;
         public TXSpecGridMinMaxChanged TXSpecGridMinMaxChangedHandlers;
@@ -44874,6 +44954,8 @@ namespace Thetis
         public GlobalKeyPress GlobalKeyPressDownHandlers;
 
         public DarkModeChanged DarkModeChangedHandlers;
+
+        public RXGainChanged RXGainChangedHandlers;
 
         private bool m_bIgnoreFrequencyDupes = false;               // if an update is to be made, but the frequency is already in the filter, ignore it
         private bool m_bHideBandstackWindowOnSelect = false;        // hide the window if an entry is selected
@@ -46543,15 +46625,16 @@ namespace Thetis
 
                 bool updateRX = false;
                 bool updateTX = false;
+                int TCIsensorInterval = int.MaxValue;
 
                 if (!_mox || (_mox && RX2Enabled && VFOBTX))
                 {
                     float offset = RXOffset(1);
 
                     // get all readings
-                    if (MeterManager.RequiresUpdate(1, Reading.SIGNAL_STRENGTH)) _RX1MeterValues[Reading.SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(0, 0, WDSP.MeterType.SIGNAL_STRENGTH) + offset;
+                    if (MeterManager.RequiresUpdate(1, Reading.SIGNAL_STRENGTH) || (TCIServer != null && TCIServer.SensorRequiresUpdate(1, Reading.SIGNAL_STRENGTH))) _RX1MeterValues[Reading.SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(0, 0, WDSP.MeterType.SIGNAL_STRENGTH) + offset;
                     bool bNeedAvg = true;
-                    if (MeterManager.RequiresUpdate(1, Reading.AVG_SIGNAL_STRENGTH))
+                    if (MeterManager.RequiresUpdate(1, Reading.AVG_SIGNAL_STRENGTH) || (TCIServer != null && TCIServer.SensorRequiresUpdate(1, Reading.AVG_SIGNAL_STRENGTH)))
                     {
                         _RX1MeterValues[Reading.AVG_SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(0, 0, WDSP.MeterType.AVG_SIGNAL_STRENGTH) + offset;
                         bNeedAvg = false;
@@ -46602,7 +46685,7 @@ namespace Thetis
                     //    }
                     //}
 
-                    if (MeterManager.RequiresUpdate(1, Reading.SIGNAL_MAX_BIN))
+                    if (MeterManager.RequiresUpdate(1, Reading.SIGNAL_MAX_BIN) || (TCIServer != null && TCIServer.SensorRequiresUpdate(1, Reading.SIGNAL_MAX_BIN)))
                     {
                         if (!_display_max_bin_enabled[0]) setupDisplayMaxBinDetect(1, false, true);
                         float max_bin = (float)WDSP.GetDetectMaxBin(0);
@@ -46610,6 +46693,8 @@ namespace Thetis
                     }
 
                     updateRX = true;
+
+                    if (TCIServer != null) TCIsensorInterval = TCIServer.MinimumRequiredRxSensorInterval();
                 }
                 else if (_mox && (!RX2Enabled || (RX2Enabled && VFOATX)))
                 {
@@ -46693,6 +46778,8 @@ namespace Thetis
                     ////
 
                     updateTX = true;
+
+                    if (TCIServer != null) TCIsensorInterval = TCIServer.MinimumRequiredTxSensorInterval();
                 }
 
                 int nRX1DDCinUse = -1, nRX2DDCinUse = -1, sync1 = -1, sync2 = -1, psrx = -1, pstx = -1;
@@ -46727,6 +46814,7 @@ namespace Thetis
 
                 // get quickest updating meter from MeterManager
                 int delayMS = MeterManager.QuickestUpdateInterval(1, _mox) - (int)meterDelay.DurationMsec;
+                delayMS = Math.Min(delayMS, TCIsensorInterval);
                 if (delayMS < 1) delayMS = 1;
                 await Task.Delay(delayMS);
             }
@@ -46741,15 +46829,16 @@ namespace Thetis
 
                 bool updateRX = false;
                 bool updateTX = false;
+                int TCIsensorInterval = int.MaxValue;
 
                 if (!_mox || (_mox && RX2Enabled && VFOATX))
                 {
                     float offset = RXOffset(2);
 
                     // get all readings
-                    if (MeterManager.RequiresUpdate(2, Reading.SIGNAL_STRENGTH)) _RX2MeterValues[Reading.SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(2, 0, WDSP.MeterType.SIGNAL_STRENGTH) + offset;
+                    if (MeterManager.RequiresUpdate(2, Reading.SIGNAL_STRENGTH) || (TCIServer != null && TCIServer.SensorRequiresUpdate(2, Reading.SIGNAL_STRENGTH))) _RX2MeterValues[Reading.SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(2, 0, WDSP.MeterType.SIGNAL_STRENGTH) + offset;
                     bool bNeedAvg = true;
-                    if (MeterManager.RequiresUpdate(2, Reading.AVG_SIGNAL_STRENGTH))
+                    if (MeterManager.RequiresUpdate(2, Reading.AVG_SIGNAL_STRENGTH) || (TCIServer != null && TCIServer.SensorRequiresUpdate(2, Reading.AVG_SIGNAL_STRENGTH)))
                     {
                         _RX2MeterValues[Reading.AVG_SIGNAL_STRENGTH] = WDSP.CalculateRXMeter(2, 0, WDSP.MeterType.AVG_SIGNAL_STRENGTH) + offset;
                         bNeedAvg = false;
@@ -46773,7 +46862,7 @@ namespace Thetis
                             _RX2MeterValues[Reading.ESTIMATED_PBSNR] = 0f;
                     }
 
-                    if(MeterManager.RequiresUpdate(2, Reading.SIGNAL_MAX_BIN))
+                    if(MeterManager.RequiresUpdate(2, Reading.SIGNAL_MAX_BIN) || (TCIServer != null && TCIServer.SensorRequiresUpdate(2, Reading.SIGNAL_MAX_BIN)))
                     {
                         if (!_display_max_bin_enabled[1]) setupDisplayMaxBinDetect(2, false, true);
                         float max_bin = (float)WDSP.GetDetectMaxBin(1);
@@ -46781,6 +46870,8 @@ namespace Thetis
                     }
 
                     updateRX = true;
+
+                    if (TCIServer != null) TCIsensorInterval = TCIServer.MinimumRequiredRxSensorInterval();
                 }
                 else if(_mox && RX2Enabled && VFOBTX)
                 {
@@ -46851,6 +46942,8 @@ namespace Thetis
                     ////
 
                     updateTX = true;
+
+                    if (TCIServer != null) TCIsensorInterval = TCIServer.MinimumRequiredTxSensorInterval();
                 }
 
                 int nRX1DDCinUse = -1, nRX2DDCinUse = -1, sync1 = -1, sync2 = -1, psrx = -1, pstx = -1;
@@ -46885,14 +46978,15 @@ namespace Thetis
 
                 // get quickest RX updating meter from MeterManager
                 int delayMS = MeterManager.QuickestUpdateInterval(2, false) - (int)meterDelay.DurationMsec;
+                delayMS = Math.Min(delayMS, TCIsensorInterval);
                 if (delayMS < 1) delayMS = 1;
                 await Task.Delay(delayMS);
             }
         }
         private void updateMetersReading(Reading reading, float value, int rx)
         {
-            if ((rx == 0 || rx == 1) && MeterManager.RequiresUpdate(1, reading)) _RX1MeterValues[reading] = value;
-            if ((rx == 0 || rx == 2) && MeterManager.RequiresUpdate(2, reading)) _RX2MeterValues[reading] = value;
+            if ((rx == 0 || rx == 1) && (MeterManager.RequiresUpdate(1, reading) || (TCIServer != null && TCIServer.SensorRequiresUpdate(1, Reading.MIC)))) _RX1MeterValues[reading] = value;
+            if ((rx == 0 || rx == 2) && (MeterManager.RequiresUpdate(2, reading) || (TCIServer != null && TCIServer.SensorRequiresUpdate(2, Reading.MIC)))) _RX2MeterValues[reading] = value;
         }
         private void picMultiMeterDigital_Click(object sender, EventArgs e)
         {
@@ -48831,7 +48925,7 @@ namespace Thetis
 
                     //BAND STACK OVERLAY
                     //only do this if not doing something else
-                    if (m_bShowBandStackOverlays && bOverRX1 && !(rx1_sub_drag || m_bDraggingNotch || m_bDraggingNotchBW || m_bDraggingPanafallSplit ||
+                    if (e.Y >= 15 && m_bShowBandStackOverlays && bOverRX1 && !(rx1_sub_drag || m_bDraggingNotch || m_bDraggingNotchBW || m_bDraggingPanafallSplit ||
                         gridminmaxadjust || agc_knee_drag || agc_hang_drag || rx1_spectrum_tune_drag || rx1_click_tune_drag || rx2_spectrum_tune_drag || rx2_click_tune_drag ||
                         tx_high_filter_drag || tx_low_filter_drag || rx1_low_filter_drag || rx1_high_filter_drag || rx2_low_filter_drag || rx1_high_filter_drag))
                     {
@@ -49670,7 +49764,7 @@ namespace Thetis
                     #region BandStackHighlight
                     //BandstackOverlay highlight MW0LGE_21h
                     //only do this if not doing something else
-                    if (m_bShowBandStackOverlays && bOverRX1 && !(rx1_sub_drag || bHighlightNumberScaleRX1 || bDraggingAFilter || m_bDraggingNotch || m_bDraggingNotchBW || m_bDraggingPanafallSplit))
+                    if (e.Y >= 15 && m_bShowBandStackOverlays && bOverRX1 && !(rx1_sub_drag || bHighlightNumberScaleRX1 || bDraggingAFilter || m_bDraggingNotch || m_bDraggingNotchBW || m_bDraggingPanafallSplit))
                     {
                         if (Display.BandStackOverlays != null && Display.BandStackOverlays.Length > 0)
                         {
@@ -50164,6 +50258,9 @@ namespace Thetis
                                     if ((_click_tune_rx2_display || Common.ShiftKeyDown) && _highlightedSpot == null)
                                         next_cursor = Cursors.NoMoveHoriz;
                                 }
+
+                                if (e.Y < 15) highlightRX1 = 0; // ignore it if we up top
+                                if (e.Y < ((pnlDisplay.Height / 2) + 15)) highlightRX2 = 0;
 
                                 //MW0LGE_21k9 added the filter info onto the cursor info, also done below on the filter drags
                                 if (highlightRX1 == -1)
@@ -50979,8 +51076,28 @@ namespace Thetis
                 case OtherButtonId.TWOTON: TwoTone = !TwoTone; break;
                 case OtherButtonId.DUP: chkRX2SR.Checked = !chkRX2SR.Checked; break;
                 case OtherButtonId.PS_A: PSA = !PSA; break;
-                case OtherButtonId.REC: QuickRec = !QuickRec; break;
-                case OtherButtonId.PLAY: QuickPlay = !QuickPlay; break;
+                case OtherButtonId.REC:
+                    {
+                        if (ckQuickRec.Enabled) // button is disabled if play active
+                        {
+                            ckQuickRec.CheckedChanged -= ckQuickRec_CheckedChanged;
+                            QuickRec = !QuickRec;
+                            ckQuickRec.CheckedChanged += ckQuickRec_CheckedChanged;
+                            ckQuickRec_CheckedChanged(this, EventArgs.Empty);
+                        }
+                    }
+                    break;
+                case OtherButtonId.PLAY:
+                    {
+                        if (ckQuickPlay.Enabled) // button is disabled if record active
+                        {
+                            ckQuickPlay.CheckedChanged -= ckQuickPlay_CheckedChanged;
+                            QuickPlay = !QuickPlay;
+                            ckQuickPlay.CheckedChanged += ckQuickPlay_CheckedChanged;
+                            ckQuickPlay_CheckedChanged(this, EventArgs.Empty);
+                        }
+                    }
+                    break;
                 //case OtherButtonId.WAVE_RECORD: WaveRecord = !WaveRecord; break;
                 case OtherButtonId.NR: incrementNR(rx); break;
                 case OtherButtonId.ANF: SetANF(rx, !GetANF(rx)); break;
@@ -53268,6 +53385,8 @@ namespace Thetis
 
                     if (ckQuickPlay.Checked) ckQuickPlay.Checked = false;
                 }
+
+                QuickPlayChangedHandlers?.Invoke(1, !playing, playing);
             }
             else
             {
@@ -53303,6 +53422,8 @@ namespace Thetis
 
                     if (ckQuickRec.Checked) ckQuickRec.Checked = false;
                 }
+
+                QuickRecordChangedHandlers?.Invoke(1, !recording, recording);
             }
             else
             {
