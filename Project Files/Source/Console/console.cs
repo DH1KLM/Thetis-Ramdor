@@ -13107,7 +13107,8 @@ namespace Thetis
             }
             set
             {
-                if (chkCWAPFEnabled != null) chkCWAPFEnabled.Checked = value;
+                if (chkCWAPFEnabled != null)
+                    chkCWAPFEnabled.Checked = value;
             }
         }
 
@@ -14631,6 +14632,8 @@ namespace Thetis
             get { return digu_click_tune_offset; }
             set
             {
+                if (digu_click_tune_offset == value) return;
+                int oldValue = digu_click_tune_offset;
                 digu_click_tune_offset = value;
                 Filter filter1 = RX1Filter;     // save RX1 filter
                 Filter filter2 = RX2Filter;     // save RX2 filter
@@ -14650,6 +14653,11 @@ namespace Thetis
                 }
                 RX1Filter = filter1;            // restore RX1 filter
                 RX2Filter = filter2;            // restore RX2 filter                     
+                if (!IsSetupFormNull && SetupForm.DigU_CT_Offset != digu_click_tune_offset)
+                    SetupForm.DigU_CT_Offset = digu_click_tune_offset;
+
+                if (oldValue != digu_click_tune_offset)
+                    DIGUOffsetChangedHandlers?.Invoke(oldValue, digu_click_tune_offset);
             }
         }
 
@@ -14659,6 +14667,8 @@ namespace Thetis
             get { return digl_click_tune_offset; }
             set
             {
+                if (digl_click_tune_offset == value) return;
+                int oldValue = digl_click_tune_offset;
                 digl_click_tune_offset = value;
                 Filter filter1 = RX1Filter;     // save RX1 filter
                 Filter filter2 = RX2Filter;     // save RX2 filter
@@ -14678,6 +14688,11 @@ namespace Thetis
                 }
                 RX1Filter = filter1;        // restore RX1 filter
                 RX2Filter = filter2;        // restore RX2 filter          
+                if (!IsSetupFormNull && SetupForm.DigL_CT_Offset != digl_click_tune_offset)
+                    SetupForm.DigL_CT_Offset = digl_click_tune_offset;
+
+                if (oldValue != digl_click_tune_offset)
+                    DIGLOffsetChangedHandlers?.Invoke(oldValue, digl_click_tune_offset);
             }
         }
 
@@ -16606,6 +16621,7 @@ namespace Thetis
             }
         }
 
+        private int _old_cw_keyer_speed = -1;
         private int cat_display_avg_status = 0;
         public int CATDisplayAvg
         {
@@ -28639,6 +28655,11 @@ namespace Thetis
             }
             if (sliderForm != null)
                 sliderForm.MasterAFGain = ptbAF.Value;
+
+            if (_old_master_af != -999 && _old_master_af != ptbAF.Value)
+                VolumeChangedHandlers?.Invoke(_old_master_af, ptbAF.Value);
+
+            _old_master_af = ptbAF.Value;
         }
         private void ptbRF_Scroll(object sender, System.EventArgs e)
         {
@@ -28666,6 +28687,11 @@ namespace Thetis
             Midi2Cat.SendUpdateToMidi(CatCmd.AGCLevel_inc, pct);
             if (sliderForm != null)
                 sliderForm.RX1RFGainAGC = ptbRF.Value;
+
+            if (_old_rx1_agc_gain != -999 && _old_rx1_agc_gain != ptbRF.Value)
+                AGCGainChangedHandlers?.Invoke(1, _old_rx1_agc_gain, ptbRF.Value);
+
+            _old_rx1_agc_gain = ptbRF.Value;
         }
 
         private volatile bool _mic_muted = false;
@@ -28748,6 +28774,16 @@ namespace Thetis
             double pct = Convert.ToDouble(ptbCWSpeed.Value) / Convert.ToDouble(60);
             if (pct < 1.0 / 15.0) pct = 1.0 / 15.0;  //-W2PA Don't let the last LED go out
             Midi2Cat.SendUpdateToMidi(CatCmd.CWSpeed_inc, pct);
+
+            if (initializing || _old_cw_keyer_speed < 0)
+            {
+                _old_cw_keyer_speed = ptbCWSpeed.Value;
+            }
+            else if (_old_cw_keyer_speed != ptbCWSpeed.Value)
+            {
+                CWKeyerSpeedChangedHandlers?.Invoke(_old_cw_keyer_speed, ptbCWSpeed.Value);
+                _old_cw_keyer_speed = ptbCWSpeed.Value;
+            }
         }
 
         private void chkVOX_CheckedChanged(object sender, System.EventArgs e)
@@ -30677,6 +30713,27 @@ namespace Thetis
 
         private void chkCWAPFEnabled_CheckedChanged(object sender, System.EventArgs e)
         {
+            int rx = 0;
+            bool oldState = false;
+            if (!IsSetupFormNull)
+            {
+                if (SetupForm.RX1APFControls)
+                {
+                    rx = 1;
+                    oldState = radio.GetDSPRX(0, 0).RXAPFRun;
+                }
+                else if (SetupForm.RX1subAPFControls)
+                {
+                    rx = 1;
+                    oldState = radio.GetDSPRX(0, 1).RXAPFRun;
+                }
+                else if (SetupForm.RX2APFControls)
+                {
+                    rx = 2;
+                    oldState = radio.GetDSPRX(1, 0).RXAPFRun;
+                }
+            }
+
             if (!IsSetupFormNull)
             {
                 if (SetupForm.RX1APFControls)
@@ -30690,6 +30747,9 @@ namespace Thetis
                 if (chkCWAPFEnabled.Checked) _cat_apf_status = 1; //-W2PA Added to enable extended CAT control
                 else _cat_apf_status = 0;
             }
+
+            if (rx != 0 && oldState != chkCWAPFEnabled.Checked)
+                APFChangedHandlers?.Invoke(rx, oldState, chkCWAPFEnabled.Checked);
         }
 
         private void ptbCWAPFFreq_Scroll(object sender, System.EventArgs e)
@@ -35780,6 +35840,11 @@ namespace Thetis
             updateVFOFreqs(_mox); //[2.10.1.0] MW0LGE we might need to update everything if tx'ing on sub, use std function
 
             SetGeneralSetting(0, OtherButtonId.XIT, chkXIT.Checked);
+
+            if (!initializing && _old_xit_enabled != chkXIT.Checked)
+                XITChangedHandlers?.Invoke(_old_xit_enabled, chkXIT.Checked);
+
+            _old_xit_enabled = chkXIT.Checked;
         }
 
         private void chkRIT_CheckedChanged(object sender, System.EventArgs e)
@@ -35810,6 +35875,11 @@ namespace Thetis
             if (_display_max_bin_enabled[0]) setupDisplayMaxBinDetect(1, false, true);
 
             SetGeneralSetting(0, OtherButtonId.RIT, chkRIT.Checked);
+
+            if (!initializing && _old_rit_enabled != chkRIT.Checked)
+                RITChangedHandlers?.Invoke(_old_rit_enabled, chkRIT.Checked);
+
+            _old_rit_enabled = chkRIT.Checked;
         }
 
         private void udRIT_ValueChanged(object sender, System.EventArgs e)
@@ -35832,6 +35902,11 @@ namespace Thetis
 
             //max bin detect
             if (_display_max_bin_enabled[0]) setupDisplayMaxBinDetect(1, false, true);
+
+            if (_old_rit_value != int.MinValue && _old_rit_value != (int)udRIT.Value)
+                RITValueChangedHandlers?.Invoke(_old_rit_value, (int)udRIT.Value);
+
+            _old_rit_value = (int)udRIT.Value;
         }
 
         private void udXIT_ValueChanged(object sender, System.EventArgs e)
@@ -35854,6 +35929,11 @@ namespace Thetis
             }
 
             SetGeneralSetting(0, OtherButtonId.XIT, chkXIT.Checked);
+
+            if (_old_xit_value != int.MinValue && _old_xit_value != (int)udXIT.Value)
+                XITValueChangedHandlers?.Invoke(_old_xit_value, (int)udXIT.Value);
+
+            _old_xit_value = (int)udXIT.Value;
         }
 
         private void btnXITReset_Click(object sender, System.EventArgs e)
@@ -36352,6 +36432,11 @@ namespace Thetis
             }
             if (sliderForm != null)
                 sliderForm.RX1LRPan = ptbPanMainRX.Value;
+
+            if (_old_rx1_pan != -999 && _old_rx1_pan != ptbPanMainRX.Value)
+                BalanceChangedHandlers?.Invoke(1, false, _old_rx1_pan, ptbPanMainRX.Value);
+
+            _old_rx1_pan = ptbPanMainRX.Value;
         }
 
         private void ptbPanSubRX_Scroll(object sender, System.EventArgs e)
@@ -36367,6 +36452,10 @@ namespace Thetis
             if (sliderForm != null)
                 sliderForm.SubRXLRPan = ptbPanSubRX.Value;
 
+            if (_old_rx1_sub_pan != -999 && _old_rx1_sub_pan != ptbPanSubRX.Value)
+                BalanceChangedHandlers?.Invoke(1, true, _old_rx1_sub_pan, ptbPanSubRX.Value);
+
+            _old_rx1_sub_pan = ptbPanSubRX.Value;
         }
         private bool _oldMultiRX = false;
         private bool _sub_rx_enabled = false;
@@ -36463,6 +36552,16 @@ namespace Thetis
         }
 
         private bool _old_pan_swap = false;
+        private int _old_master_af = -999;
+        private int _old_rx1_pan = -999;
+        private int _old_rx1_sub_pan = -999;
+        private int _old_rx2_pan = -999;
+        private int _old_rx1_agc_gain = -999;
+        private int _old_rx2_agc_gain = -999;
+        private int _old_rit_value = int.MinValue;
+        private int _old_xit_value = int.MinValue;
+        private bool _old_rit_enabled = false;
+        private bool _old_xit_enabled = false;
         private void chkPanSwap_CheckedChanged(object sender, System.EventArgs e)
         {
             ptbPanMainRX_Scroll(this, EventArgs.Empty);
@@ -38397,6 +38496,11 @@ namespace Thetis
             if (sliderForm != null)
                 sliderForm.RX2RFGainAGC = ptbRX2RF.Value;
 
+            if (_old_rx2_agc_gain != -999 && _old_rx2_agc_gain != ptbRX2RF.Value)
+                AGCGainChangedHandlers?.Invoke(2, _old_rx2_agc_gain, ptbRX2RF.Value);
+
+            _old_rx2_agc_gain = ptbRX2RF.Value;
+
         }
         private void picRX2Squelch_Paint(object sender, System.Windows.Forms.PaintEventArgs e)
         {
@@ -38435,6 +38539,11 @@ namespace Thetis
             }
             if (sliderForm != null)
                 sliderForm.RX2LRPan = ptbRX2Pan.Value;
+
+            if (_old_rx2_pan != -999 && _old_rx2_pan != ptbRX2Pan.Value)
+                BalanceChangedHandlers?.Invoke(2, false, _old_rx2_pan, ptbRX2Pan.Value);
+
+            _old_rx2_pan = ptbRX2Pan.Value;
 
         }
 
@@ -43596,8 +43705,11 @@ namespace Thetis
         //MW0LGE
         private void ptbPanMainRX_DoubleClick(object sender, EventArgs e)
         {
+            ptbPanMainRX.Scroll -= ptbPanMainRX_Scroll;
             ptbPanMainRX.Value = 50;
-            radio.GetDSPRX(0, 0).Pan = 0.5f;
+            ptbPanMainRX_Scroll(this, EventArgs.Empty);
+            ptbPanMainRX.Scroll += ptbPanMainRX_Scroll;
+            //radio.GetDSPRX(0, 0).Pan = 0.5f;
             if (sender.GetType() == typeof(PrettyTrackBar))
             {
                 ptbPanMainRX.Focus();
@@ -43606,8 +43718,11 @@ namespace Thetis
 
         private void ptbPanSubRX_DoubleClick(object sender, EventArgs e)
         {
+            ptbPanMainRX.Scroll -= ptbPanSubRX_Scroll;
             ptbPanSubRX.Value = 50;
-            radio.GetDSPRX(0, 1).Pan = 0.5f;
+            ptbPanSubRX_Scroll(this, EventArgs.Empty);
+            ptbPanMainRX.Scroll += ptbPanSubRX_Scroll;
+            //radio.GetDSPRX(0, 1).Pan = 0.5f;
             if (sender.GetType() == typeof(PrettyTrackBar))
             {
                 ptbPanSubRX.Focus();
@@ -43616,8 +43731,11 @@ namespace Thetis
 
         private void ptbRX2Pan_DoubleClick(object sender, EventArgs e)
         {
+            ptbPanMainRX.Scroll -= ptbRX2Pan_Scroll;
             ptbRX2Pan.Value = 50;
-            radio.GetDSPRX(1, 0).Pan = 0.5f;
+            ptbRX2Pan_Scroll(this, EventArgs.Empty);
+            ptbPanMainRX.Scroll += ptbRX2Pan_Scroll;
+            //radio.GetDSPRX(1, 0).Pan = 0.5f;
             if (sender.GetType() == typeof(PrettyTrackBar))
             {
                 ptbRX2Pan.Focus();
@@ -44721,6 +44839,17 @@ namespace Thetis
         public delegate void MuteChanged(int rx, bool oldState, bool newState);
         public delegate void MONChanged(bool oldState, bool newState);
         public delegate void MONVolumeChanged(int oldVolume, int newVolume);
+        public delegate void RITChanged(bool oldState, bool newState);
+        public delegate void XITChanged(bool oldState, bool newState);
+        public delegate void RITValueChanged(int oldValue, int newValue);
+        public delegate void XITValueChanged(int oldValue, int newValue);
+        public delegate void VolumeChanged(int oldValue, int newValue);
+        public delegate void BalanceChanged(int rx, bool is_subrx, int oldValue, int newValue);
+        public delegate void AGCGainChanged(int rx, int oldValue, int newValue);
+        public delegate void APFChanged(int rx, bool oldState, bool newState);
+        public delegate void SQLLevelChanged(int rx, int oldValue, int newValue);
+        public delegate void DIGLOffsetChanged(int oldValue, int newValue);
+        public delegate void DIGUOffsetChanged(int oldValue, int newValue);
 
         public delegate void EQChanged(bool oldState, bool newState);
         public delegate void LevelerChanged(bool oldState, bool newState);
@@ -44808,6 +44937,9 @@ namespace Thetis
         public delegate void AGCAutoModeChanged(int rx, bool old_state, bool new_state);
         public delegate void GeneralSettingsChanged(int rx, OtherButtonId setting, bool old_state, bool new_state, Dictionary<OtherButtonId, bool> settings);
         public delegate void SQLChanged(int rx, SquelchState old_state, SquelchState new_state);
+        public delegate void CWXSpeedChanged(int old_speed, int new_speed);
+        public delegate void CWXDelayChanged(int old_delay_ms, int new_delay_ms);
+        public delegate void CWKeyerSpeedChanged(int old_speed, int new_speed);
         public delegate void CWXShown(bool shown);
         public delegate void GlobalKeyPress(Keys keycode);
         public delegate void DarkModeChanged(bool dark_mode);
@@ -44860,6 +44992,17 @@ namespace Thetis
         public MuteChanged MuteChangedHandlers;
         public MONChanged MONChangedHandlers;
         public MONVolumeChanged MONVolumeChangedHandlers;
+        public RITChanged RITChangedHandlers;
+        public XITChanged XITChangedHandlers;
+        public RITValueChanged RITValueChangedHandlers;
+        public XITValueChanged XITValueChangedHandlers;
+        public VolumeChanged VolumeChangedHandlers;
+        public BalanceChanged BalanceChangedHandlers;
+        public AGCGainChanged AGCGainChangedHandlers;
+        public APFChanged APFChangedHandlers;
+        public SQLLevelChanged SQLLevelChangedHandlers;
+        public DIGLOffsetChanged DIGLOffsetChangedHandlers;
+        public DIGUOffsetChanged DIGUOffsetChangedHandlers;
 
         public EQChanged EQChangedHandlers;
         public LevelerChanged LevelerChangedHandlers;
@@ -44948,6 +45091,9 @@ namespace Thetis
         public AGCAutoModeChanged AGCAutoModeChangedHandlers;
         public GeneralSettingsChanged GeneralSettingsChangedHandlers;
         public SQLChanged SQLChangedHandlers;
+        public CWXSpeedChanged CWXSpeedChangedHandlers;
+        public CWXDelayChanged CWXDelayChangedHandlers;
+        public CWKeyerSpeedChanged CWKeyerSpeedChangedHandlers;
         public CWXShown CWXShownHandlers;
 
         public GlobalKeyPress GlobalKeyPressUpHandlers;
@@ -46997,6 +47143,9 @@ namespace Thetis
         {
             if (_bIgnoreSqlUpdate) return; // used by chkSquelch_CheckStateChanged
 
+            int oldValue = chkSquelch.CheckState == CheckState.Indeterminate ?
+                rx1_voice_squelch_threshold_scroll :
+                (_rx1_dsp_mode == DSPMode.FM ? rx1_fm_squelch_threshold_scroll : rx1_squelch_threshold_scroll);
             int nValue;
 
             switch (chkSquelch.CheckState)
@@ -47051,6 +47200,12 @@ namespace Thetis
             if (sliderForm != null)
                 //[2.10.3.5]MW0LGE
                 sliderForm.RX1Squelch = ptbSquelch.Value;
+
+            int newValue = chkSquelch.CheckState == CheckState.Indeterminate ?
+                rx1_voice_squelch_threshold_scroll :
+                (_rx1_dsp_mode == DSPMode.FM ? rx1_fm_squelch_threshold_scroll : rx1_squelch_threshold_scroll);
+            if (oldValue != newValue)
+                SQLLevelChangedHandlers?.Invoke(1, oldValue, newValue);
         }
         private bool _bIgnoreSqlStateChange = false;// used by handleSqlFM
         private SquelchState[] _old_sql_state = new SquelchState[2] { SquelchState.OFF, SquelchState.OFF };
@@ -47338,6 +47493,9 @@ namespace Thetis
         {            
             if (_bIgnoreSqlUpdate) return; // used by chkRX2Squelch_CheckStateChanged
 
+            int oldValue = chkRX2Squelch.CheckState == CheckState.Indeterminate ?
+                rx2_voice_squelch_threshold_scroll :
+                (_rx2_dsp_mode == DSPMode.FM ? rx2_fm_squelch_threshold_scroll : rx2_squelch_threshold_scroll);
             int nValue;
 
             switch (chkRX2Squelch.CheckState)
@@ -47391,6 +47549,12 @@ namespace Thetis
             if (sliderForm != null)
                 //[2.10.3.5]MW0LGE
                 sliderForm.RX2Squelch = ptbRX2Squelch.Value;
+
+            int newValue = chkRX2Squelch.CheckState == CheckState.Indeterminate ?
+                rx2_voice_squelch_threshold_scroll :
+                (_rx2_dsp_mode == DSPMode.FM ? rx2_fm_squelch_threshold_scroll : rx2_squelch_threshold_scroll);
+            if (oldValue != newValue)
+                SQLLevelChangedHandlers?.Invoke(2, oldValue, newValue);
         }
 
         private void chkSquelch_MouseDown(object sender, MouseEventArgs e)
