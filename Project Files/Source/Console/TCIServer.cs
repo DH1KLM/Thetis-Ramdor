@@ -736,6 +736,7 @@ namespace Thetis
 		private NetworkStream m_stream = null;
 		private bool m_stopClient = false;
 		private bool m_disconnected = false;
+        private int m_disconnectNotified = 0;
 		private Thread m_clientListenerThread = null;
 		private bool m_markedForDeletion = false;
 		private bool m_bWebSocket = false;
@@ -1124,6 +1125,11 @@ namespace Thetis
             if (m_disconnected) return;
             sendCTUN(rx - 1, enabled);
         }
+        public void AGCModeChanged(int rx, AGCMode mode)
+        {
+            if (m_disconnected) return;
+            sendAgcMode(rx - 1, mode);
+        }
         public void TXProfileChanged(string profile)
         {
             if (m_disconnected) return;
@@ -1162,6 +1168,123 @@ namespace Thetis
 			if (m_disconnected) return;
             sendMONVolume(linearToDbVolume(newVolume));
 		}
+        public void VolumeChanged(int newVolume)
+        {
+            if (m_disconnected) return;
+            sendVolume(linearToDbVolume(newVolume));
+        }
+        public void BalanceChanged(int rx, bool is_subrx, int newBalance)
+        {
+            if (m_disconnected) return;
+            int chan = is_subrx ? 1 : 0;
+            double balance = 40.0 - (newBalance * 0.8);
+            sendRxBalance(rx - 1, chan, balance);
+        }
+        public void AGCGainChanged(int rx, int newGain)
+        {
+            if (m_disconnected) return;
+            sendAgcGain(rx - 1, newGain);
+        }
+        public void RITChanged(bool newState)
+        {
+            if (m_disconnected) return;
+            sendRITEnable(0, newState);
+            sendRITEnable(1, newState);
+        }
+        public void XITChanged(bool newState)
+        {
+            if (m_disconnected) return;
+            sendXITEnable(0, newState);
+            sendXITEnable(1, newState);
+        }
+        public void RITValueChanged(int newValue)
+        {
+            if (m_disconnected) return;
+            sendRITOffset(0, newValue);
+            sendRITOffset(1, newValue);
+        }
+        public void XITValueChanged(int newValue)
+        {
+            if (m_disconnected) return;
+            sendXITOffset(0, newValue);
+            sendXITOffset(1, newValue);
+        }
+        public void CwMacrosSpeedChanged(int newSpeed)
+        {
+            if (m_disconnected) return;
+            sendCwMacrosSpeed(newSpeed);
+        }
+        public void CwMacrosDelayChanged(int newDelay)
+        {
+            if (m_disconnected) return;
+            sendCwMacrosDelay(newDelay);
+        }
+        public void CwKeyerSpeedChanged(int newSpeed)
+        {
+            if (m_disconnected) return;
+            sendCwKeyerSpeed(newSpeed);
+        }
+        public void CwMacrosEmpty()
+        {
+            if (m_disconnected) return;
+            sendCwMacrosEmpty();
+        }
+        public void CwCallsignSent(string callsign)
+        {
+            if (m_disconnected) return;
+            sendCallsignSend(callsign);
+        }
+        public void NbChanged(int rx, int newNb)
+        {
+            if (m_disconnected) return;
+            sendRxNbEnable(rx - 1, newNb == 1);
+        }
+        public void BinChanged(int rx, bool newState)
+        {
+            if (m_disconnected) return;
+            sendRxBinEnable(rx - 1, newState);
+        }
+        public void LockChanged(int rx, bool newState)
+        {
+            if (m_disconnected) return;
+            sendLock(rx - 1, newState);
+        }
+        public void VFOLocksChanged()
+        {
+            if (m_disconnected) return;
+            sendAllVFOLocks();
+        }
+        public void SqlChanged(int rx, SquelchState newState)
+        {
+            if (m_disconnected) return;
+            sendSqlEnable(rx - 1, newState != SquelchState.OFF);
+        }
+        public void SqlLevelChanged(int rx, int newValue)
+        {
+            if (m_disconnected) return;
+            sendSqlLevel(rx - 1, newValue);
+        }
+        public void ApfChanged(int rx, bool newState)
+        {
+            if (m_disconnected) return;
+            sendRxApfEnable(rx - 1, newState);
+        }
+        public void NfChanged(bool newState)
+        {
+            if (m_disconnected) return;
+            sendRxNfEnable(0, newState);
+            sendRxNfEnable(1, newState);
+        }
+        public void DiglOffsetChanged(int newValue)
+        {
+            if (m_disconnected) return;
+            sendDiglOffset(newValue);
+        }
+        public void DiguOffsetChanged(int newValue)
+        {
+            if (m_disconnected) return;
+            sendDiguOffset(newValue);
+        }
 		public void TXFrequencyChanged(long new_frequency, Band new_band, bool rx2_enabled, bool tx_vfob)
 		{
             if (m_disconnected) return;
@@ -1485,17 +1608,17 @@ namespace Thetis
                     break;
                 case "dds":
                 case "rx_filter_band":
-                case "modulation":
+                case "rx_balance":
+                case "agc_gain":
                 case "drive":
                 case "tune_drive":
                 case "tune":
-                case "rx_enable":
-                case "tx_enable":
                     if (args.Length >= 1)
                         return command + ":" + args[0];
                     break;
                 case "tx_frequency":
                 case "tx_frequency_thetis":
+                case "volume":
                     return command;
             }
 
@@ -1704,6 +1827,186 @@ namespace Thetis
 			string s = "split_enable:" + rx.ToString() + "," + bSplit.ToString().ToLower() + ";";
 			sendTextFrame(s);
 		}
+        private void sendRITEnable(int rx, bool enabled)
+        {
+            string s = "rit_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendXITEnable(int rx, bool enabled)
+        {
+            string s = "xit_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRITOffset(int rx, int offset)
+        {
+            string s = "rit_offset:" + rx.ToString() + "," + offset.ToString() + ";";
+            sendTextFrame(s);
+        }
+        private void sendXITOffset(int rx, int offset)
+        {
+            string s = "xit_offset:" + rx.ToString() + "," + offset.ToString() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRxNbEnable(int rx, bool enabled)
+        {
+            string s = "rx_nb_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRxBinEnable(int rx, bool enabled)
+        {
+            string s = "rx_bin_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRxApfEnable(int rx, bool enabled)
+        {
+            string s = "rx_apf_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRxNfEnable(int rx, bool enabled)
+        {
+            string s = "rx_nf_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendLock(int rx, bool enabled)
+        {
+            string s = "lock:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendVFOLock(int rx, int chan, bool enabled)
+        {
+            string s = "vfo_lock:" + rx.ToString() + "," + chan.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendSqlEnable(int rx, bool enabled)
+        {
+            string s = "sql_enable:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendSqlLevel(int rx, int level)
+        {
+            string s = "sql_level:" + rx.ToString() + "," + level.ToString() + ";";
+            sendTextFrame(s);
+        }
+        private void sendCwMacrosSpeed(int speed)
+        {
+            sendTextFrame("cw_macros_speed:" + speed.ToString() + ";");
+        }
+        private void sendCwMacrosDelay(int delayMs)
+        {
+            sendTextFrame("cw_macros_delay:" + delayMs.ToString() + ";");
+        }
+        private void sendCwKeyerSpeed(int speed)
+        {
+            sendTextFrame("cw_keyer_speed:" + speed.ToString() + ";");
+        }
+        private void sendCwMacrosEmpty()
+        {
+            sendTextFrame("cw_macros_empty;");
+        }
+        private void sendCallsignSend(string callsign)
+        {
+            sendTextFrame("callsign_send:" + callsign + ";");
+        }
+        private bool tryGetVFOLockState(int rx, int chan, out bool enabled)
+        {
+            enabled = false;
+
+            if (rx < 0 || rx > 1 || chan < 0 || chan > 1)
+                return false;
+
+            bool rx2Enabled = console != null && console.ThreadSafeTCIAccessor.RX2Enabled;
+
+            if (!rx2Enabled)
+            {
+                if (rx != 0)
+                    return false;
+
+                enabled = chan == 0 ? console.ThreadSafeTCIAccessor.VFOALock : console.ThreadSafeTCIAccessor.VFOBLock;
+                return true;
+            }
+
+            if (rx == 0)
+            {
+                if (chan != 0)
+                    return false;
+
+                enabled = console.ThreadSafeTCIAccessor.VFOALock;
+                return true;
+            }
+
+            if (rx == 1)
+            {
+                enabled = console.ThreadSafeTCIAccessor.VFOBLock;
+            return true;
+        }
+
+            return false;
+        }
+        private bool trySetVFOLockState(int rx, int chan, bool enabled)
+        {
+            if (rx < 0 || rx > 1 || chan < 0 || chan > 1)
+                return false;
+
+            bool rx2Enabled = console != null && console.ThreadSafeTCIAccessor.RX2Enabled;
+
+            if (!rx2Enabled)
+            {
+                if (rx != 0)
+                    return false;
+
+                if (chan == 0)
+                    console.ThreadSafeTCIAccessor.VFOALock = enabled;
+                else
+                    console.ThreadSafeTCIAccessor.VFOBLock = enabled;
+                return true;
+            }
+
+            if (rx == 0)
+            {
+                if (chan != 0)
+                    return false;
+
+                console.ThreadSafeTCIAccessor.VFOALock = enabled;
+                return true;
+            }
+
+            if (rx == 1)
+            {
+                console.ThreadSafeTCIAccessor.VFOBLock = enabled;
+                return true;
+            }
+
+            return false;
+        }
+        private void sendAllVFOLocks()
+        {
+            if (console.ThreadSafeTCIAccessor.RX2Enabled)
+            {
+            if (tryGetVFOLockState(0, 0, out bool lock00))
+                sendVFOLock(0, 0, lock00);
+                if (tryGetVFOLockState(1, 0, out bool lock10))
+                    sendVFOLock(1, 0, lock10);
+                if (tryGetVFOLockState(1, 1, out bool lock11))
+                    sendVFOLock(1, 1, lock11);
+            }
+            else
+            {
+                if (tryGetVFOLockState(0, 0, out bool lock00))
+                    sendVFOLock(0, 0, lock00);
+                if (tryGetVFOLockState(0, 1, out bool lock01))
+                    sendVFOLock(0, 1, lock01);
+            }
+        }
+        private void sendDiglOffset(int offset)
+        {
+            string s = "digl_offset:" + offset.ToString() + ";";
+            sendTextFrame(s);
+        }
+        private void sendDiguOffset(int offset)
+        {
+            string s = "digu_offset:" + offset.ToString() + ";";
+            sendTextFrame(s);
+        }
 		private void sendVFO(int rx, int chan, long vfo = -1)
         {
 			bool bVFOaUseRX2;
@@ -1816,11 +2119,77 @@ namespace Thetis
             string s = "mon_enable:" + enable.ToString().ToLower() + ";";
             sendTextFrame(s);
         }
+        private void sendVolume(double volume)
+        {
+            if (volume < -60f || volume > 0f) return;
+
+            string s = "volume:" + volume.ToString("F1", CultureInfo.InvariantCulture).ToLower() + ";";
+            sendTextFrame(s);
+        }
 		private void sendMONVolume(double volume)
 		{
             if (volume < -60f || volume > 0f) return;
 
             string s = "mon_volume:" + volume.ToString("F1", CultureInfo.InvariantCulture).ToLower() + ";";
+            sendTextFrame(s);
+        }
+        private void sendRxBalance(int rx, int chan, double balance)
+        {
+            string s = "rx_balance:" + rx.ToString() + "," + chan.ToString() + "," + balance.ToString("F2", CultureInfo.InvariantCulture) + ";";
+            sendTextFrame(s);
+        }
+        private string agcModeToTciMode(AGCMode mode)
+        {
+            switch (mode)
+            {
+                case AGCMode.FIXD:
+                    return "off";
+                case AGCMode.LONG:
+                    return "long";
+                case AGCMode.SLOW:
+                    return "slow";
+                case AGCMode.FAST:
+                    return "fast";
+                case AGCMode.CUSTOM:
+                    return "custom";
+                case AGCMode.MED:
+                    return "normal";
+                default:
+                    return "normal";
+            }
+        }
+        private AGCMode tciModeToAgcMode(string mode)
+        {
+            switch (mode.Trim().ToLowerInvariant())
+            {
+                case "off":
+                case "fixd":
+                case "fixed":
+                    return AGCMode.FIXD;
+                case "long":
+                    return AGCMode.LONG;
+                case "slow":
+                    return AGCMode.SLOW;
+                case "fast":
+                    return AGCMode.FAST;
+                case "custom":
+                    return AGCMode.CUSTOM;
+                case "normal":
+                case "med":
+                case "medium":
+                    return AGCMode.MED;
+                default:
+                    return AGCMode.MED;
+            }
+        }
+        private void sendAgcMode(int rx, AGCMode mode)
+        {
+            string s = "agc_mode:" + rx.ToString() + "," + agcModeToTciMode(mode) + ";";
+            sendTextFrame(s);
+        }
+        private void sendAgcGain(int rx, int gain)
+        {
+            string s = "agc_gain:" + rx.ToString() + "," + gain.ToString() + ";";
             sendTextFrame(s);
         }
 		private void sendTXFrequencyChanged(long new_frequency, Band new_band, bool rx2_enabled, bool tx_vfob)
@@ -1977,9 +2346,20 @@ namespace Thetis
             sendNrEnable(1, rx2nr > 0, false, rx2nr);
             sendNrEnable(0, rx1nr > 0, true, rx1nr);
             sendNrEnable(1, rx2nr > 0, true, rx2nr);
+            sendRxNbEnable(0, console.ThreadSafeTCIAccessor.GetSelectedNB(1) == 1);
+            sendRxNbEnable(1, console.ThreadSafeTCIAccessor.GetSelectedNB(2) == 1);
+            sendRxBinEnable(0, console.ThreadSafeTCIAccessor.GetBin(1));
+            sendRxBinEnable(1, console.ThreadSafeTCIAccessor.GetBin(2));
 
             sendAnfEnable(0, console.ThreadSafeTCIAccessor.GetANF(1));
             sendAnfEnable(1, console.ThreadSafeTCIAccessor.GetANF(2));
+            if (!console.IsSetupFormNull)
+            {
+                sendRxApfEnable(0, console.ThreadSafeTCIAccessor.SetupForm.RX1APFEnable);
+                sendRxApfEnable(1, console.ThreadSafeTCIAccessor.SetupForm.RX2APFEnable);
+            }
+            sendRxNfEnable(0, console.ThreadSafeTCIAccessor.GetMNF(1));
+            sendRxNfEnable(1, console.ThreadSafeTCIAccessor.GetMNF(2));
 
             double rx1vol = audioGainToDb(console.ThreadSafeTCIAccessor.RX0Gain / 100f);
             double rx1Subvol = audioGainToDb(console.ThreadSafeTCIAccessor.RX1Gain / 100f);
@@ -1989,6 +2369,14 @@ namespace Thetis
             sendRxVolume(0, 1, rx1Subvol);
             sendRxVolume(1, 0, rx2vol);
             sendRxVolume(1, 1, rx2vol);
+            sendRxBalance(0, 0, 40.0 - (console.ThreadSafeTCIAccessor.GetBal(1, false) * 0.8));
+            sendRxBalance(0, 1, 40.0 - (console.ThreadSafeTCIAccessor.GetBal(1, true) * 0.8));
+            sendRxBalance(1, 0, 40.0 - (console.ThreadSafeTCIAccessor.GetBal(2, false) * 0.8));
+            sendRxBalance(1, 1, 40.0 - (console.ThreadSafeTCIAccessor.GetBal(2, true) * 0.8));
+            sendAgcMode(0, console.ThreadSafeTCIAccessor.GetAGCMode(1));
+            sendAgcMode(1, console.ThreadSafeTCIAccessor.GetAGCMode(2));
+            sendAgcGain(0, console.ThreadSafeTCIAccessor.GetAgcT(1));
+            sendAgcGain(1, console.ThreadSafeTCIAccessor.GetAgcT(2));
 
             sendCTUN(0, console.ThreadSafeTCIAccessor.GetCTUN(1));
             sendCTUN(1, console.ThreadSafeTCIAccessor.GetCTUN(2));
@@ -2002,6 +2390,31 @@ namespace Thetis
             //lock
             //TODO rx channel enable
             //rit/xit
+
+            sendRITEnable(0, console.ThreadSafeTCIAccessor.RITOn);
+            sendRITEnable(1, console.ThreadSafeTCIAccessor.RITOn);
+            sendXITEnable(0, console.ThreadSafeTCIAccessor.XITOn);
+            sendXITEnable(1, console.ThreadSafeTCIAccessor.XITOn);
+            sendRITOffset(0, console.ThreadSafeTCIAccessor.RITValue);
+            sendRITOffset(1, console.ThreadSafeTCIAccessor.RITValue);
+            sendXITOffset(0, console.ThreadSafeTCIAccessor.XITValue);
+            sendXITOffset(1, console.ThreadSafeTCIAccessor.XITValue);
+            sendLock(0, console.ThreadSafeTCIAccessor.VFOALock);
+            if (bRX2Enabled)
+            sendLock(1, console.ThreadSafeTCIAccessor.VFOBLock);
+            sendAllVFOLocks();
+            sendSqlEnable(0, console.ThreadSafeTCIAccessor.GetSqlMode(1) != SquelchState.OFF);
+            sendSqlEnable(1, console.ThreadSafeTCIAccessor.GetSqlMode(2) != SquelchState.OFF);
+            sendSqlLevel(0, console.ThreadSafeTCIAccessor.GetSql(1));
+            sendSqlLevel(1, console.ThreadSafeTCIAccessor.GetSql(2));
+            sendDiglOffset(console.ThreadSafeTCIAccessor.DIGLClickTuneOffset);
+            sendDiguOffset(console.ThreadSafeTCIAccessor.DIGUClickTuneOffset);
+            if (m_server != null)
+            {
+                sendCwMacrosSpeed(m_server.GetCwMacrosSpeed());
+                sendCwMacrosDelay(m_server.GetCwMacrosDelay());
+                sendCwKeyerSpeed(m_server.GetCwKeyerSpeed());
+            }
 
             sendSplit(0, console.ThreadSafeTCIAccessor.VFOSplit);
 			sendSplit(1, bRX2Enabled && console.ThreadSafeTCIAccessor.VFOSplit);
@@ -2033,6 +2446,7 @@ namespace Thetis
 			sendMute(console.ThreadSafeTCIAccessor.MUT || (console.ThreadSafeTCIAccessor.MUT2 && bRX2Enabled));
 			sendMuteRX(0, console.ThreadSafeTCIAccessor.MUT);
             sendMuteRX(1, console.ThreadSafeTCIAccessor.MUT2);
+            sendVolume(linearToDbVolume(console.ThreadSafeTCIAccessor.AF));
 
 			sendMONEnable(console.ThreadSafeTCIAccessor.MON);
             sendMONVolume(linearToDbVolume(console.ThreadSafeTCIAccessor.TXAF));
@@ -2281,8 +2695,21 @@ namespace Thetis
 
 			Debug.Print("TCPIP TCI Client Disconnected !");
 			m_disconnected = true;
+            notifyServerDisconnected();
 			ClientDisconnectedHandlers?.Invoke();
 		}
+        private void notifyServerDisconnected(TCPIPtciServer server = null)
+        {
+            if (Interlocked.Exchange(ref m_disconnectNotified, 1) != 0) return;
+
+            try
+            {
+                (server ?? m_server)?.OnSocketListenerDisconnected(this);
+            }
+            catch
+            {
+            }
+        }
 		private void sendPingFrame(string sMsg)
 		{
 			try
@@ -2380,6 +2807,7 @@ namespace Thetis
 		public void StopSocketListener()
 		{
 			TCPIPtciServer server = m_server;
+            notifyServerDisconnected(server);
 			lock (m_objStreamLock)
 			{
 				m_txUsesTCIAudio = false;
@@ -2466,6 +2894,7 @@ namespace Thetis
 					{
 						m_clientListenerThread.Abort();
 						m_disconnected = true;
+                        notifyServerDisconnected(server);
 						ClientDisconnectedHandlers?.Invoke();
 					}
 
@@ -2639,6 +3068,334 @@ namespace Thetis
 				}
 			}
 		}
+        private void handleRITEnableMessage(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            if (args.Length == 2)
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                if (rx == 0 || rx == 1)
+                    console.ThreadSafeTCIAccessor.RITOn = enabled;
+            }
+            else
+            {
+                sendRITEnable(rx, console.ThreadSafeTCIAccessor.RITOn);
+            }
+        }
+        private void handleXITEnableMessage(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            if (args.Length == 2)
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                if (rx == 0 || rx == 1)
+                    console.ThreadSafeTCIAccessor.XITOn = enabled;
+            }
+            else
+            {
+                sendXITEnable(rx, console.ThreadSafeTCIAccessor.XITOn);
+            }
+        }
+        private void handleRITOffsetMessage(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            if (args.Length == 2)
+            {
+                if (!int.TryParse(args[1], out int offset)) return;
+                if (rx == 0 || rx == 1)
+                    console.ThreadSafeTCIAccessor.RITValue = offset;
+            }
+            else
+            {
+                sendRITOffset(rx, console.ThreadSafeTCIAccessor.RITValue);
+            }
+        }
+        private void handleXITOffsetMessage(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+
+            if (args.Length == 2)
+            {
+                if (!int.TryParse(args[1], out int offset)) return;
+                if (rx == 0 || rx == 1)
+                    console.ThreadSafeTCIAccessor.XITValue = offset;
+            }
+            else
+            {
+                sendXITOffset(rx, console.ThreadSafeTCIAccessor.XITValue);
+            }
+        }
+        private void handleRxNbEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendRxNbEnable(rx, console.ThreadSafeTCIAccessor.GetSelectedNB(rx + 1) == 1);
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                console.ThreadSafeTCIAccessor.SetSelectedNB(rx + 1, enabled ? 1 : 0);
+            }
+        }
+        private void handleRxBinEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendRxBinEnable(rx, console.ThreadSafeTCIAccessor.GetBin(rx + 1));
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                console.ThreadSafeTCIAccessor.SetBin(rx + 1, enabled);
+            }
+        }
+        private void handleRxApfEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+            if (console.IsSetupFormNull) return;
+
+            if (args.Length == 1)
+            {
+                bool enabled = rx == 0 ? console.ThreadSafeTCIAccessor.SetupForm.RX1APFEnable : console.ThreadSafeTCIAccessor.SetupForm.RX2APFEnable;
+                sendRxApfEnable(rx, enabled);
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                    if (rx == 0)
+                {
+                    console.ThreadSafeTCIAccessor.SetupForm.RX1APFEnable = enabled;
+                }
+                else
+                {
+                    console.ThreadSafeTCIAccessor.SetupForm.RX2APFEnable = enabled;
+                }
+            }
+        }
+        private void handleRxNfEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendRxNfEnable(rx, console.ThreadSafeTCIAccessor.GetMNF(rx + 1));
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                console.ThreadSafeTCIAccessor.TNFActive = enabled;
+            }
+        }
+        private void handleLock(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendLock(rx, rx == 0 ? console.ThreadSafeTCIAccessor.VFOALock : console.ThreadSafeTCIAccessor.VFOBLock);
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                if (rx == 0)
+                    console.ThreadSafeTCIAccessor.VFOALock = enabled;
+                else
+                    console.ThreadSafeTCIAccessor.VFOBLock = enabled;
+            }
+        }
+        private void handleVFOLock(string[] args)
+        {
+            if (args == null || args.Length < 2 || args.Length > 3) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (!int.TryParse(args[1], out int chan)) return;
+
+            if (args.Length == 2)
+            {
+                if (tryGetVFOLockState(rx, chan, out bool enabled))
+                    sendVFOLock(rx, chan, enabled);
+            }
+            else
+            {
+                if (!bool.TryParse(args[2], out bool enabled)) return;
+                trySetVFOLockState(rx, chan, enabled);
+            }
+        }
+        private void handleSqlEnable(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendSqlEnable(rx, console.ThreadSafeTCIAccessor.GetSqlMode(rx + 1) != SquelchState.OFF);
+            }
+            else
+            {
+                if (!bool.TryParse(args[1], out bool enabled)) return;
+                console.ThreadSafeTCIAccessor.SetSqlMode(rx + 1, enabled ? SquelchState.SQL : SquelchState.OFF);
+            }
+        }
+        private void handleSqlLevel(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendSqlLevel(rx, console.ThreadSafeTCIAccessor.GetSql(rx + 1));
+            }
+            else
+            {
+                if (!int.TryParse(args[1], out int level)) return;
+                level = Math.Max(-140, Math.Min(0, level));
+                console.ThreadSafeTCIAccessor.SetSql(rx + 1, level);
+            }
+        }
+        private void handleDiglOffset(string[] args, bool hasArgs = true)
+        {
+            if (!hasArgs || args == null || args.Length == 0)
+            {
+                sendDiglOffset(console.ThreadSafeTCIAccessor.DIGLClickTuneOffset);
+                return;
+            }
+
+            if (!int.TryParse(args[0], out int offset)) return;
+            offset = Math.Max(0, Math.Min(4000, offset));
+            console.ThreadSafeTCIAccessor.DIGLClickTuneOffset = offset;
+        }
+        private void handleDiguOffset(string[] args, bool hasArgs = true)
+        {
+            if (!hasArgs || args == null || args.Length == 0)
+            {
+                sendDiguOffset(console.ThreadSafeTCIAccessor.DIGUClickTuneOffset);
+                return;
+            }
+
+            if (!int.TryParse(args[0], out int offset)) return;
+            offset = Math.Max(0, Math.Min(4000, offset));
+            console.ThreadSafeTCIAccessor.DIGUClickTuneOffset = offset;
+        }
+        private void handleCwMacrosSpeed(string[] args, bool hasArgs = true)
+        {
+            if (!hasArgs || args == null || args.Length < 1)
+            {
+                if (m_server != null)
+                    sendCwMacrosSpeed(m_server.GetCwMacrosSpeed());
+                return;
+            }
+
+            if (!int.TryParse(args[0], out int speed)) return;
+            m_server?.SetCwMacrosSpeed(speed);
+        }
+        private void handleCwMacrosDelay(string[] args, bool hasArgs = true)
+        {
+            if (!hasArgs || args == null || args.Length < 1)
+            {
+                if (m_server != null)
+                    sendCwMacrosDelay(m_server.GetCwMacrosDelay());
+                return;
+            }
+
+            if (!int.TryParse(args[0], out int delayMs)) return;
+            m_server?.SetCwMacrosDelay(delayMs);
+        }
+        private void handleCwKeyerSpeed(string[] args, bool hasArgs = true)
+        {
+            if (!hasArgs || args == null || args.Length < 1)
+            {
+                if (m_server != null)
+                    sendCwKeyerSpeed(m_server.GetCwKeyerSpeed());
+                return;
+            }
+
+            if (!int.TryParse(args[0], out int speed)) return;
+            m_server?.SetCwKeyerSpeed(speed);
+        }
+        private void handleCwMacrosSpeedUp(string[] args)
+        {
+            if (args == null || args.Length != 1) return;
+            if (!int.TryParse(args[0], out int amount)) return;
+            m_server?.IncreaseCwMacrosSpeed(amount);
+        }
+        private void handleCwMacrosSpeedDown(string[] args)
+        {
+            if (args == null || args.Length != 1) return;
+            if (!int.TryParse(args[0], out int amount)) return;
+            m_server?.DecreaseCwMacrosSpeed(amount);
+        }
+        private void handleCwMacros(string[] args)
+        {
+            if (args == null || args.Length < 2) return;
+            if (!int.TryParse(args[0], out int trx)) return;
+            if (trx < 0 || trx > 1) return;
+
+            string text = string.Join(",", args.Skip(1).ToArray());
+            m_server?.SendCwMacro(this, trx, text);
+        }
+        private void handleCwTerminal(string[] args)
+        {
+            if (args == null || args.Length != 1) return;
+            if (!bool.TryParse(args[0], out bool enabled)) return;
+            m_server?.SetCwTerminalEnabled(this, enabled);
+        }
+        private void handleCwMsg(string[] args)
+        {
+            if (args == null || args.Length < 1) return;
+
+            if (args.Length == 1)
+            {
+                m_server?.UpdateCwMessageCallsign(this, args[0]);
+                return;
+            }
+
+            if (args.Length < 4) return;
+            if (!int.TryParse(args[0], out int trx)) return;
+            if (trx < 0 || trx > 1) return;
+
+            string prefix = args[1];
+            string callsign = args[2];
+            string suffix = string.Join(",", args.Skip(3).ToArray());
+            m_server?.SendCwMessage(this, trx, prefix, callsign, suffix);
+        }
+        private void handleCwMacrosStop()
+        {
+            m_server?.StopCwMacros(this);
+        }
+        private void handleKeyer(string[] args)
+        {
+            if (args == null || args.Length < 2 || args.Length > 3) return;
+            if (!int.TryParse(args[0], out int trx)) return;
+            if (trx < 0 || trx > 1) return;
+            if (!bool.TryParse(args[1], out bool pressed)) return;
+
+            int durationMs = 0;
+            if (args.Length > 2 && !int.TryParse(args[2], out durationMs)) return;
+
+            m_server?.HandleCwKeyer(this, trx, pressed, Math.Max(0, durationMs));
+        }
 		private void handleTrxMessage(string[] args)
 		{
 			int rx = 0;
@@ -3257,6 +4014,18 @@ namespace Thetis
 
             return Math.Max(dbMin, Math.Min(dbMax, dbValue));
         }
+        private int dbToLinearVolume(double dBLevel)
+        {
+            double dbMin = -60f;
+            double dbMax = 0;
+            double linearMax = 100f;
+            double linearMin = 0;
+
+            double linearValue = ((dBLevel - dbMin) / (dbMax - dbMin)) * (linearMax - linearMin) + linearMin;
+            linearValue = Math.Max(linearMin, Math.Min(linearMax, linearValue));
+
+            return (int)linearValue;
+        }
 		private void handleMONVolume(string[] args, bool hasArgs = true)
 		{
             if (hasArgs && args.Length == 1)
@@ -3265,20 +4034,25 @@ namespace Thetis
                 bool bOK = double.TryParse(args[0], out double dBLevel);
                 if (bOK)
                 {
-                    double dbMin = -60f;
-                    double dbMax = 0;
-                    double linearMax = 100f;
-                    double linearMin = 0;
-                    double linearValue = ((dBLevel - dbMin) / (dbMax - dbMin)) * (linearMax - linearMin) + linearMin;
-                    linearValue = Math.Max(linearMin, Math.Min(linearMax, linearValue));
-
-                    console.ThreadSafeTCIAccessor.TXAF = (int)linearValue;
+                    console.ThreadSafeTCIAccessor.TXAF = dbToLinearVolume(dBLevel);
                 }
             }
             else if (!hasArgs)
             {
 				//read
                 sendMONVolume(linearToDbVolume(console.ThreadSafeTCIAccessor.TXAF));
+            }
+        }
+        private void handleVolume(string[] args, bool hasArgs = true)
+        {
+            if (hasArgs && args.Length == 1)
+            {
+                if (!double.TryParse(args[0], out double dBLevel)) return;
+                console.ThreadSafeTCIAccessor.AF = dbToLinearVolume(dBLevel);
+            }
+            else if (!hasArgs)
+            {
+                sendVolume(linearToDbVolume(console.ThreadSafeTCIAccessor.AF));
             }
         }
         private void handleSpotSimulateClick(string[] args)
@@ -3750,6 +4524,65 @@ namespace Thetis
                 }
             }
         }
+        private void handleRxBalance(string[] args)
+        {
+            if (args == null || args.Length < 2 || args.Length > 3) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+            if (!int.TryParse(args[1], out int chan)) return;
+            if (chan < 0 || chan > 1) return;
+
+            bool subrx = chan == 1;
+
+            if (args.Length == 2)
+            {
+                int pan = console.ThreadSafeTCIAccessor.GetBal(rx + 1, subrx);
+                double balance = 40.0 - (pan * 0.8);
+                sendRxBalance(rx, chan, balance);
+            }
+            else
+            {
+                if (!double.TryParse(args[2], out double balance)) return;
+                balance = Math.Max(-40.0, Math.Min(40.0, balance));
+
+                int pan = (int)Math.Round((40.0 - balance) / 0.8, MidpointRounding.AwayFromZero);
+                pan = Math.Max(0, Math.Min(100, pan));
+
+                console.ThreadSafeTCIAccessor.SetBal(rx + 1, pan, subrx);
+            }
+        }
+        private void handleAgcMode(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendAgcMode(rx, console.ThreadSafeTCIAccessor.GetAGCMode(rx + 1));
+            }
+            else
+            {
+                console.ThreadSafeTCIAccessor.SetAGCMode(rx + 1, tciModeToAgcMode(args[1]));
+            }
+        }
+        private void handleAgcGain(string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2) return;
+            if (!int.TryParse(args[0], out int rx)) return;
+            if (rx < 0 || rx > 1) return;
+
+            if (args.Length == 1)
+            {
+                sendAgcGain(rx, console.ThreadSafeTCIAccessor.GetAgcT(rx + 1));
+            }
+            else
+            {
+                if (!int.TryParse(args[1], out int gain)) return;
+                gain = Math.Max(-20, Math.Min(120, gain));
+                console.ThreadSafeTCIAccessor.SetAgcT(rx + 1, gain);
+            }
+        }
         private void sendCTUN(int rx, bool enabled)
         {
             string s = "rx_ctun_ex:" + rx.ToString() + "," + enabled.ToString().ToLower() + ";";
@@ -3998,6 +4831,75 @@ namespace Thetis
                     case "split_enable":
                         handleSplitEnableMessage(args);
                         break;
+                    case "rit_enable":
+                        handleRITEnableMessage(args);
+                        break;
+                    case "xit_enable":
+                        handleXITEnableMessage(args);
+                        break;
+                    case "rit_offset":
+                        handleRITOffsetMessage(args);
+                        break;
+                    case "xit_offset":
+                        handleXITOffsetMessage(args);
+                        break;
+                    case "rx_nb_enable":
+                        handleRxNbEnable(args);
+                        break;
+                    case "rx_bin_enable":
+                        handleRxBinEnable(args);
+                        break;
+                    case "rx_apf_enable":
+                        handleRxApfEnable(args);
+                        break;
+                    case "rx_nf_enable":
+                        handleRxNfEnable(args);
+                        break;
+                    case "lock":
+                        handleLock(args);
+                        break;
+                    case "vfo_lock":
+                        handleVFOLock(args);
+                        break;
+                    case "sql_enable":
+                        handleSqlEnable(args);
+                        break;
+                    case "sql_level":
+                        handleSqlLevel(args);
+                        break;
+                    case "digl_offset":
+                        handleDiglOffset(args);
+                        break;
+                    case "digu_offset":
+                        handleDiguOffset(args);
+                        break;
+                    case "cw_macros_speed":
+                        handleCwMacrosSpeed(args);
+                        break;
+                    case "cw_macros_delay":
+                        handleCwMacrosDelay(args);
+                        break;
+                    case "cw_keyer_speed":
+                        handleCwKeyerSpeed(args);
+                        break;
+                    case "cw_macros_speed_up":
+                        handleCwMacrosSpeedUp(args);
+                        break;
+                    case "cw_macros_speed_down":
+                        handleCwMacrosSpeedDown(args);
+                        break;
+                    case "cw_macros":
+                        handleCwMacros(args);
+                        break;
+                    case "cw_terminal":
+                        handleCwTerminal(args);
+                        break;
+                    case "cw_msg":
+                        handleCwMsg(args);
+                        break;
+                    case "keyer":
+                        handleKeyer(args);
+                        break;
                     case "tune":
                         handleTune(args);
                         break;
@@ -4055,6 +4957,9 @@ namespace Thetis
                     case "mute":
                         handleMute(args);
                         break;
+                    case "volume":
+                        handleVolume(args);
+                        break;
                     case "rx_mute":
                         handleMuteRX(args);
                         break;
@@ -4097,6 +5002,15 @@ namespace Thetis
                     case "rx_volume":
                         handleRxVolume(args);
                         break;
+                    case "rx_balance":
+                        handleRxBalance(args);
+                        break;
+                    case "agc_mode":
+                        handleAgcMode(args);
+                        break;
+                    case "agc_gain":
+                        handleAgcGain(args);
+                        break;
                     case "rx_ctun_ex":
                         handleCTUN(args); // bespoke thetis cmd for ctun
                         break;
@@ -4127,11 +5041,32 @@ namespace Thetis
                     case "mute":
                         handleMute(null, false);
                         break;
+                    case "volume":
+                        handleVolume(null, false);
+                        break;
                     case "mon_enable":
                         handleMONEnable(null, false);
                         break;
                     case "mon_volume":
                         handleMONVolume(null, false);
+                        break;
+                    case "digl_offset":
+                        handleDiglOffset(null, false);
+                        break;
+                    case "digu_offset":
+                        handleDiguOffset(null, false);
+                        break;
+                    case "cw_macros_speed":
+                        handleCwMacrosSpeed(null, false);
+                        break;
+                    case "cw_macros_delay":
+                        handleCwMacrosDelay(null, false);
+                        break;
+                    case "cw_keyer_speed":
+                        handleCwKeyerSpeed(null, false);
+                        break;
+                    case "cw_macros_stop":
+                        handleCwMacrosStop();
                         break;
                     case "iq_samplerate":
                         sendIQSampleRate(getPublishedIQSampleRate());
@@ -5072,6 +6007,8 @@ namespace Thetis
         private bool m_bIQSwap = true;
         private bool m_bAlwaysStreamIQ = false;
         private TCITxStereoInputMode m_txStereoInputMode = TCITxStereoInputMode.Both;
+        private TCICWController m_cwController = null;
+        private int m_cwInternalMacroSpeedUpdates = 0;
 
         private frmLog _log;
 
@@ -5210,6 +6147,7 @@ namespace Thetis
             get { return m_txStereoInputMode; }
             set { m_txStereoInputMode = value; }
         }
+
         public void StartServer(Console c, int rateLimit = 0)
 		{
 			if (m_server != null)
@@ -5246,6 +6184,13 @@ namespace Thetis
                 }
 
 				_console = c;
+                if (m_cwController != null)
+                {
+                    m_cwController.Dispose();
+                    m_cwController = null;
+                }
+                if (_console != null)
+                    m_cwController = new TCICWController(this);
 
 				m_socketListenersList = new List<TCPIPtciSocketListener>();
                 cmaster.SetTCIRun(0);
@@ -5272,10 +6217,31 @@ namespace Thetis
 					console.ThreadSafeTCIAccessor.MuteChangedHandlers += OnMuteChanged;
 					console.ThreadSafeTCIAccessor.MONChangedHandlers += OnMONChanged;
                     console.ThreadSafeTCIAccessor.MONVolumeChangedHandlers += OnMONVolumeChanged;
+                    console.ThreadSafeTCIAccessor.VolumeChangedHandlers += OnVolumeChanged;
+                    console.ThreadSafeTCIAccessor.BalanceChangedHandlers += OnBalanceChanged;
+                    console.ThreadSafeTCIAccessor.AGCGainChangedHandlers += OnAGCGainChanged;
+                    console.ThreadSafeTCIAccessor.RITChangedHandlers += OnRITChanged;
+                    console.ThreadSafeTCIAccessor.XITChangedHandlers += OnXITChanged;
+                    console.ThreadSafeTCIAccessor.RITValueChangedHandlers += OnRITValueChanged;
+                    console.ThreadSafeTCIAccessor.XITValueChangedHandlers += OnXITValueChanged;
 					console.ThreadSafeTCIAccessor.TXFrequncyChangedHandlers += OnTXFrequencyChanged;
                     console.ThreadSafeTCIAccessor.MeterReadingsChangedHandlers += OnMeterReadingsChanged;
                     console.ThreadSafeTCIAccessor.NRChangedHandlers += OnNrChanged;
+                    console.ThreadSafeTCIAccessor.NBChangedHandlers += OnNbChanged;
                     console.ThreadSafeTCIAccessor.ANFChangedHandlers += OnAnfChanged;
+                    console.ThreadSafeTCIAccessor.BINChangedHandlers += OnBinChanged;
+                    console.ThreadSafeTCIAccessor.AGCModeChangedHandlers += OnAGCModeChanged;
+                    console.ThreadSafeTCIAccessor.VfoALockChangedHandlers += OnVfoALockChanged;
+                    console.ThreadSafeTCIAccessor.VfoBLockChangedHandlers += OnVfoBLockChanged;
+                    console.ThreadSafeTCIAccessor.SQLChangedHandlers += OnSqlChanged;
+                    console.ThreadSafeTCIAccessor.SQLLevelChangedHandlers += OnSqlLevelChanged;
+                    console.ThreadSafeTCIAccessor.APFChangedHandlers += OnApfChanged;
+                    console.ThreadSafeTCIAccessor.TNFChangedHandlers += OnTnfChanged;
+                    console.ThreadSafeTCIAccessor.DIGLOffsetChangedHandlers += OnDiglOffsetChanged;
+                    console.ThreadSafeTCIAccessor.DIGUOffsetChangedHandlers += OnDiguOffsetChanged;
+                    console.ThreadSafeTCIAccessor.CWXSpeedChangedHandlers += OnCwMacrosSpeedChanged;
+                    console.ThreadSafeTCIAccessor.CWXDelayChangedHandlers += OnCwMacrosDelayChanged;
+                    console.ThreadSafeTCIAccessor.CWKeyerSpeedChangedHandlers += OnCwKeyerSpeedChanged;
                     console.ThreadSafeTCIAccessor.RXGainChangedHandlers += OnRxAfGainChanged;
                     console.ThreadSafeTCIAccessor.CTUNChangedHandlers += OnCTUNChanged;
                     console.ThreadSafeTCIAccessor.TXProfileChangedHandlers += OnTXProfileChanged;
@@ -5354,10 +6320,31 @@ namespace Thetis
                     console.ThreadSafeTCIAccessor.MuteChangedHandlers -= OnMuteChanged;
                     console.ThreadSafeTCIAccessor.MONChangedHandlers -= OnMONChanged;
                     console.ThreadSafeTCIAccessor.MONVolumeChangedHandlers -= OnMONVolumeChanged;
+                    console.ThreadSafeTCIAccessor.VolumeChangedHandlers -= OnVolumeChanged;
+                    console.ThreadSafeTCIAccessor.BalanceChangedHandlers -= OnBalanceChanged;
+                    console.ThreadSafeTCIAccessor.AGCGainChangedHandlers -= OnAGCGainChanged;
+                    console.ThreadSafeTCIAccessor.RITChangedHandlers -= OnRITChanged;
+                    console.ThreadSafeTCIAccessor.XITChangedHandlers -= OnXITChanged;
+                    console.ThreadSafeTCIAccessor.RITValueChangedHandlers -= OnRITValueChanged;
+                    console.ThreadSafeTCIAccessor.XITValueChangedHandlers -= OnXITValueChanged;
                     console.ThreadSafeTCIAccessor.TXFrequncyChangedHandlers -= OnTXFrequencyChanged;
                     console.ThreadSafeTCIAccessor.MeterReadingsChangedHandlers -= OnMeterReadingsChanged;
                     console.ThreadSafeTCIAccessor.NRChangedHandlers -= OnNrChanged;
+                    console.ThreadSafeTCIAccessor.NBChangedHandlers -= OnNbChanged;
                     console.ThreadSafeTCIAccessor.ANFChangedHandlers -= OnAnfChanged;
+                    console.ThreadSafeTCIAccessor.BINChangedHandlers -= OnBinChanged;
+                    console.ThreadSafeTCIAccessor.AGCModeChangedHandlers -= OnAGCModeChanged;
+                    console.ThreadSafeTCIAccessor.VfoALockChangedHandlers -= OnVfoALockChanged;
+                    console.ThreadSafeTCIAccessor.VfoBLockChangedHandlers -= OnVfoBLockChanged;
+                    console.ThreadSafeTCIAccessor.SQLChangedHandlers -= OnSqlChanged;
+                    console.ThreadSafeTCIAccessor.SQLLevelChangedHandlers -= OnSqlLevelChanged;
+                    console.ThreadSafeTCIAccessor.APFChangedHandlers -= OnApfChanged;
+                    console.ThreadSafeTCIAccessor.TNFChangedHandlers -= OnTnfChanged;
+                    console.ThreadSafeTCIAccessor.DIGLOffsetChangedHandlers -= OnDiglOffsetChanged;
+                    console.ThreadSafeTCIAccessor.DIGUOffsetChangedHandlers -= OnDiguOffsetChanged;
+                    console.ThreadSafeTCIAccessor.CWXSpeedChangedHandlers -= OnCwMacrosSpeedChanged;
+                    console.ThreadSafeTCIAccessor.CWXDelayChangedHandlers -= OnCwMacrosDelayChanged;
+                    console.ThreadSafeTCIAccessor.CWKeyerSpeedChangedHandlers -= OnCwKeyerSpeedChanged;
                     console.ThreadSafeTCIAccessor.RXGainChangedHandlers -= OnRxAfGainChanged;
                     console.ThreadSafeTCIAccessor.CTUNChangedHandlers -= OnCTUNChanged;
                     console.ThreadSafeTCIAccessor.TXProfileChangedHandlers -= OnTXProfileChanged;
@@ -5405,9 +6392,158 @@ namespace Thetis
 				StopAllSocketListers();
                 cmaster.SetTCIRun(0);
 
+                if (m_cwController != null)
+                {
+                    m_cwController.Dispose();
+                    m_cwController = null;
+                }
+
 				m_server = null;
 			}
 		}
+
+        internal int GetCwMacrosSpeed()
+        {
+            return m_cwController != null ? m_cwController.GetMacroSpeed() : 30;
+        }
+
+        internal void SetCwMacrosSpeed(int wpm)
+        {
+            m_cwController?.SetMacroSpeed(wpm);
+        }
+
+        internal int GetCwMacrosDelay()
+        {
+            return m_cwController != null ? m_cwController.GetMacroDelayMs() : 0;
+        }
+
+        internal void SetCwMacrosDelay(int delayMs)
+        {
+            m_cwController?.SetMacroDelayMs(delayMs);
+        }
+
+        internal int GetCwKeyerSpeed()
+        {
+            return m_cwController != null ? m_cwController.GetKeyerSpeed() : 30;
+        }
+
+        internal void SetCwKeyerSpeed(int wpm)
+        {
+            m_cwController?.SetKeyerSpeed(wpm);
+        }
+
+        internal void IncreaseCwMacrosSpeed(int amount)
+        {
+            m_cwController?.IncreaseMacroSpeed(amount);
+        }
+
+        internal void DecreaseCwMacrosSpeed(int amount)
+        {
+            m_cwController?.DecreaseMacroSpeed(amount);
+        }
+
+        internal void SetCwTerminalEnabled(TCPIPtciSocketListener socketListener, bool enabled)
+        {
+            m_cwController?.SetTerminalEnabled(socketListener, enabled);
+        }
+
+        internal void SendCwMacro(TCPIPtciSocketListener socketListener, int trx, string text)
+        {
+            m_cwController?.SendMacro(socketListener, trx, text);
+        }
+
+        internal void SendCwMessage(TCPIPtciSocketListener socketListener, int trx, string prefix, string callsign, string suffix)
+        {
+            m_cwController?.SendMessage(socketListener, trx, prefix, callsign, suffix);
+        }
+
+        internal void UpdateCwMessageCallsign(TCPIPtciSocketListener socketListener, string callsign)
+        {
+            m_cwController?.UpdatePendingCallsign(socketListener, callsign);
+        }
+
+        internal void StopCwMacros(TCPIPtciSocketListener socketListener)
+        {
+            m_cwController?.Stop(socketListener);
+        }
+
+        internal void HandleCwKeyer(TCPIPtciSocketListener socketListener, int trx, bool pressed, int durationMs)
+        {
+            m_cwController?.HandleKeyer(socketListener, trx, pressed, durationMs);
+        }
+
+        internal void OnSocketListenerDisconnected(TCPIPtciSocketListener socketListener)
+        {
+            m_cwController?.DisconnectClient(socketListener);
+        }
+
+        internal void OnCwMacrosEmpty()
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CwMacrosEmpty();
+                }
+            }
+        }
+
+        internal void OnCwCallsignSent(string callsign)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CwCallsignSent(callsign);
+                }
+            }
+        }
+
+        private void OnCwMacrosSpeedChanged(int oldSpeed, int newSpeed)
+        {
+            if (Interlocked.CompareExchange(ref m_cwInternalMacroSpeedUpdates, 0, 0) > 0)
+                return;
+
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CwMacrosSpeedChanged(newSpeed);
+                }
+            }
+        }
+
+        private void OnCwMacrosDelayChanged(int oldDelay, int newDelay)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CwMacrosDelayChanged(newDelay);
+                }
+            }
+        }
+
+        private void OnCwKeyerSpeedChanged(int oldSpeed, int newSpeed)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.CwKeyerSpeedChanged(newSpeed);
+                }
+            }
+        }
 
 		public int ClientsConnected
         {
@@ -5444,10 +6580,10 @@ namespace Thetis
 			}
 
             foreach (TCPIPtciSocketListener socketListener in stopList)
-				{
-					socketListener.ClientConnectedHandlers -= ClientConnectedHandler;
-					socketListener.ClientDisconnectedHandlers -= ClientDisconnectedHandler;
-					socketListener.ClientErrorHandlers -= ClientErrorHandler;
+			{
+				socketListener.ClientConnectedHandlers -= ClientConnectedHandler;
+				socketListener.ClientDisconnectedHandlers -= ClientDisconnectedHandler;
+				socketListener.ClientErrorHandlers -= ClientErrorHandler;
                 socketListener.StopSocketListener();
 			}
 		}
@@ -5843,6 +6979,18 @@ namespace Thetis
                 }
             }
         }
+        private void OnNbChanged(int rx, int old_nb, int new_nb)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.NbChanged(rx, new_nb);
+                }
+            }
+        }
         private void OnAnfChanged(int rx, bool old_state, bool new_state)
         {
             lock (m_objLocker)
@@ -5852,6 +7000,129 @@ namespace Thetis
                 foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
                 {
                     socketListener.AnfChanged(rx, new_state);
+                }
+            }
+        }
+        private void OnBinChanged(int rx, bool old_state, bool new_state)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.BinChanged(rx, new_state);
+                }
+            }
+        }
+        private void OnAGCModeChanged(int rx, AGCMode old_mode, AGCMode new_mode)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.AGCModeChanged(rx, new_mode);
+                }
+            }
+        }
+        private void OnVfoALockChanged(int rx, bool old_state, bool new_state)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.LockChanged(1, new_state);
+                    socketListener.VFOLocksChanged();
+                }
+            }
+        }
+        private void OnVfoBLockChanged(int rx, bool old_state, bool new_state)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    if (rx == 2)
+                    socketListener.LockChanged(2, new_state);
+                    socketListener.VFOLocksChanged();
+                }
+            }
+        }
+        private void OnSqlChanged(int rx, SquelchState old_state, SquelchState new_state)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.SqlChanged(rx, new_state);
+                }
+            }
+        }
+        private void OnSqlLevelChanged(int rx, int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.SqlLevelChanged(rx, newValue);
+                }
+            }
+        }
+        private void OnApfChanged(int rx, bool oldState, bool newState)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.ApfChanged(rx, newState);
+                }
+            }
+        }
+        private void OnTnfChanged(bool old_tnf, bool new_tnf)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.NfChanged(new_tnf);
+                }
+            }
+        }
+        private void OnDiglOffsetChanged(int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.DiglOffsetChanged(newValue);
+                }
+            }
+        }
+        private void OnDiguOffsetChanged(int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.DiguOffsetChanged(newValue);
                 }
             }
         }
@@ -5936,6 +7207,90 @@ namespace Thetis
                 foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
                 {
                     socketListener.MONVolumeChanged(newVolume);
+                }
+            }
+        }
+        private void OnVolumeChanged(int oldVolume, int newVolume)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.VolumeChanged(newVolume);
+                }
+            }
+        }
+        private void OnBalanceChanged(int rx, bool is_subrx, int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.BalanceChanged(rx, is_subrx, newValue);
+                }
+            }
+        }
+        private void OnAGCGainChanged(int rx, int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.AGCGainChanged(rx, newValue);
+                }
+            }
+        }
+        private void OnRITChanged(bool oldState, bool newState)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.RITChanged(newState);
+                }
+            }
+        }
+        private void OnXITChanged(bool oldState, bool newState)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.XITChanged(newState);
+                }
+            }
+        }
+        private void OnRITValueChanged(int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.RITValueChanged(newValue);
+                }
+            }
+        }
+        private void OnXITValueChanged(int oldValue, int newValue)
+        {
+            lock (m_objLocker)
+            {
+                if (m_server == null || m_socketListenersList == null) return;
+
+                foreach (TCPIPtciSocketListener socketListener in m_socketListenersList)
+                {
+                    socketListener.XITValueChanged(newValue);
                 }
             }
         }
@@ -6229,5 +7584,808 @@ namespace Thetis
             queuedAudio = null;
             return false;
         }
+
+        // CW TCI SUPPORT
+        #region TCICW_Support
+        private sealed class TCICWController : IDisposable
+        {
+            private sealed class CWTxSegment
+            {
+                public string Text;
+                public int SpeedWpm;
+            }
+
+            private sealed class CWTextParseResult
+            {
+                public readonly List<CWTxSegment> Segments = new List<CWTxSegment>();
+                public int FinalSpeedWpm;
+                public bool UsedInlineSpeedChanges;
+            }
+
+            private sealed class CWTxOperation
+            {
+                public readonly List<CWTxSegment> Segments = new List<CWTxSegment>();
+                public int NextSegmentIndex;
+                public int ActiveSegmentIndex = -1;
+                public int CallsignSegmentIndex = -1;
+                public string CallsignBase = string.Empty;
+                public int BaseSpeedWpm;
+                public bool RestoreBaseSpeed;
+                public bool EmptyNotified;
+                public bool CallsignNotified;
+                public TCPIPtciSocketListener Owner;
+            }
+
+            private readonly TCPIPtciServer _server;
+            private readonly object _lockObj = new object();
+            private readonly System.Threading.Timer _pollTimer;
+            private readonly System.Threading.Timer _keyerReleaseTimer;
+            private readonly Queue<CWTxOperation> _pendingOperations = new Queue<CWTxOperation>();
+            private CWTxOperation _activeOperation = null;
+            private bool _terminalEnabled = false;
+            private TCPIPtciSocketListener _currentOwner = null;
+            private bool _terminalMoxAsserted = false;
+            private bool _releaseTerminalMoxWhenIdle = false;
+            private bool _keyerPressed = false;
+            private bool _keyerReleasePending = false;
+            private DateTime _keyerPressedAtUtc = DateTime.MinValue;
+            private bool _disposed = false;
+
+            public TCICWController(TCPIPtciServer server)
+            {
+                _server = server;
+                _pollTimer = new System.Threading.Timer(PollCallback, null, 50, 50);
+                _keyerReleaseTimer = new System.Threading.Timer(KeyerReleaseTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            }
+
+            public void Dispose()
+            {
+                bool stopKeyer;
+
+                lock (_lockObj)
+                {
+                    _disposed = true;
+                    _pendingOperations.Clear();
+                    _activeOperation = null;
+                    stopKeyer = _keyerPressed || _keyerReleasePending;
+                    _keyerPressed = false;
+                    _keyerReleasePending = false;
+                    _keyerPressedAtUtc = DateTime.MinValue;
+                    _currentOwner = null;
+                }
+
+                _keyerReleaseTimer?.Dispose();
+                _pollTimer?.Dispose();
+                if (stopKeyer)
+                    InvokeOnConsole(c => c.CWXForm.EndTCIKeyDown());
+                InvokeOnConsole(c => c.CWXForm.SetTCIInUse(false));
+            }
+
+            public int GetMacroSpeed()
+            {
+                lock (_lockObj)
+                {
+                    if (_activeOperation != null && _activeOperation.RestoreBaseSpeed)
+                        return _activeOperation.BaseSpeedWpm;
+                }
+
+                return InvokeOnConsole(c => c.CWXForm.WPM, 30);
+            }
+
+            public void SetMacroSpeed(int wpm)
+            {
+                int clamped = clampMacroSpeed(wpm);
+
+                lock (_lockObj)
+                {
+                    if (_activeOperation != null && _activeOperation.RestoreBaseSpeed)
+                        _activeOperation.BaseSpeedWpm = clamped;
+                }
+
+                InvokeOnConsole(c => c.CWXForm.WPM = clamped);
+            }
+
+            private void SetMacroSpeedSilently(int wpm)
+            {
+                Interlocked.Increment(ref _server.m_cwInternalMacroSpeedUpdates);
+                try
+                {
+                    InvokeOnConsole(c => c.CWXForm.WPM = clampMacroSpeed(wpm));
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref _server.m_cwInternalMacroSpeedUpdates);
+                }
+            }
+
+            public int GetMacroDelayMs()
+            {
+                return InvokeOnConsole(c => c.CWXForm.PTTDelayMs, 0);
+            }
+
+            public void SetMacroDelayMs(int delayMs)
+            {
+                InvokeOnConsole(c => c.CWXForm.PTTDelayMs = Math.Max(0, delayMs));
+            }
+
+            public int GetKeyerSpeed()
+            {
+                return InvokeOnConsole(c => c.CATCWSpeed, 30);
+            }
+
+            public void SetKeyerSpeed(int wpm)
+            {
+                InvokeOnConsole(c => c.CATCWSpeed = Math.Max(1, Math.Min(60, wpm)));
+            }
+
+            public void IncreaseMacroSpeed(int amount)
+            {
+                SetMacroSpeed(GetMacroSpeed() + Math.Max(0, amount));
+            }
+
+            public void DecreaseMacroSpeed(int amount)
+            {
+                SetMacroSpeed(GetMacroSpeed() - Math.Max(0, amount));
+            }
+
+            public void SetTerminalEnabled(TCPIPtciSocketListener owner, bool enabled)
+            {
+                lock (_lockObj)
+                {
+                    if (enabled)
+                    {
+                        if (!tryAcquireOwnershipLocked(owner)) return;
+                    }
+                    else if (!isCurrentOwnerLocked(owner))
+                    {
+                        return;
+                    }
+
+                    _terminalEnabled = enabled;
+
+                    if (_terminalEnabled)
+                    {
+                        if (_activeOperation != null || _pendingOperations.Count > 0)
+                            ensureTerminalMoxLocked();
+                        _releaseTerminalMoxWhenIdle = false;
+                    }
+                    else if (_activeOperation != null)
+                    {
+                        _releaseTerminalMoxWhenIdle = true;
+                    }
+                    else
+                    {
+                        releaseTerminalMoxIfOwnedLocked();
+                    }
+
+                    releaseOwnershipIfIdleLocked();
+                    updateCwxInUseStateLocked();
+                }
+            }
+
+            public void SendMacro(TCPIPtciSocketListener owner, int trx, string text)
+            {
+                lock (_lockObj)
+                {
+                    if (!isCWModeLocked()) return;
+                    if (!tryAcquireOwnershipLocked(owner)) return;
+                    if (_keyerPressed) return;
+
+                    CWTxOperation operation = buildMacroOperation(text);
+                    operation.Owner = owner;
+                    _pendingOperations.Enqueue(operation);
+                    startNextOperationLocked();
+                    updateCwxInUseStateLocked();
+                }
+            }
+
+            public void SendMessage(TCPIPtciSocketListener owner, int trx, string prefix, string callsign, string suffix)
+            {
+                lock (_lockObj)
+                {
+                    if (!isCWModeLocked()) return;
+                    if (!tryAcquireOwnershipLocked(owner)) return;
+                    if (_keyerPressed) return;
+
+                    CWTxOperation operation = buildMessageOperation(prefix, callsign, suffix);
+                    operation.Owner = owner;
+                    _pendingOperations.Enqueue(operation);
+                    startNextOperationLocked();
+                    updateCwxInUseStateLocked();
+                }
+            }
+
+            public void HandleKeyer(TCPIPtciSocketListener owner, int trx, bool pressed, int durationMs)
+            {
+                lock (_lockObj)
+                {
+                    if (pressed)
+                    {
+                        if (!tryAcquireOwnershipLocked(owner)) return;
+                        if (_activeOperation != null || _pendingOperations.Count > 0) return;
+
+                        if (!selectKeyerTargetLocked(trx) || !isCWModeLocked())
+                        {
+                            releaseOwnershipIfIdleLocked();
+                            updateCwxInUseStateLocked();
+                            return;
+                        }
+
+                        cancelKeyerReleaseTimerLocked();
+
+                        if (_keyerPressed)
+                            return;
+
+                        if (!InvokeOnConsole(c => c.CWXForm.BeginTCIKeyDown(), false))
+                        {
+                            releaseOwnershipIfIdleLocked();
+                            updateCwxInUseStateLocked();
+                            return;
+                        }
+
+                        _keyerPressed = true;
+                        _keyerReleasePending = false;
+                        _keyerPressedAtUtc = DateTime.UtcNow;
+                        updateCwxInUseStateLocked();
+                        return;
+                    }
+
+                    if (!isCurrentOwnerLocked(owner)) return;
+                    if (!_keyerPressed) return;
+
+                    scheduleKeyerReleaseLocked(durationMs);
+                }
+            }
+
+            public void UpdatePendingCallsign(TCPIPtciSocketListener owner, string callsign)
+            {
+                lock (_lockObj)
+                {
+                    if (!isCurrentOwnerLocked(owner)) return;
+                    if (_activeOperation == null) return;
+                    if (_activeOperation.CallsignSegmentIndex < 0) return;
+                    if (_activeOperation.NextSegmentIndex > _activeOperation.CallsignSegmentIndex) return;
+
+                    int repeatCount;
+                    string callsignBase = parseCallsignBase(decodeTciText(callsign), out repeatCount);
+                    if (string.IsNullOrWhiteSpace(callsignBase)) return;
+
+                    _activeOperation.CallsignBase = callsignBase;
+                    _activeOperation.Segments[_activeOperation.CallsignSegmentIndex].Text = buildRepeatedCallsign(callsignBase, repeatCount);
+                }
+            }
+
+            public void Stop(TCPIPtciSocketListener owner)
+            {
+                int restoreSpeed = -1;
+                bool shouldReleaseMox = false;
+                bool stopKeyer = false;
+
+                lock (_lockObj)
+                {
+                    if (!isCurrentOwnerLocked(owner)) return;
+
+                    cancelKeyerReleaseTimerLocked();
+                    _pendingOperations.Clear();
+
+                    if (_activeOperation != null && _activeOperation.RestoreBaseSpeed)
+                        restoreSpeed = _activeOperation.BaseSpeedWpm;
+
+                    _activeOperation = null;
+                    stopKeyer = _keyerPressed || _keyerReleasePending;
+                    _keyerPressed = false;
+                    _keyerReleasePending = false;
+                    _keyerPressedAtUtc = DateTime.MinValue;
+
+                    if (!_terminalEnabled || _releaseTerminalMoxWhenIdle)
+                        shouldReleaseMox = true;
+
+                    _releaseTerminalMoxWhenIdle = false;
+                    releaseOwnershipIfIdleLocked();
+                    updateCwxInUseStateLocked();
+                }
+
+                if (restoreSpeed > 0)
+                    SetMacroSpeed(restoreSpeed);
+
+                InvokeOnConsole(c => c.CWXForm.AbortSending());
+                if (stopKeyer)
+                    InvokeOnConsole(c => c.CWXForm.EndTCIKeyDown());
+
+                if (shouldReleaseMox)
+                {
+                    lock (_lockObj)
+                    {
+                        releaseTerminalMoxIfOwnedLocked();
+                    }
+                }
+            }
+
+            public void DisconnectClient(TCPIPtciSocketListener owner)
+            {
+                if (owner == null) return;
+
+                lock (_lockObj)
+                {
+                    if (!isCurrentOwnerLocked(owner)) return;
+
+                    _terminalEnabled = false;
+                    _releaseTerminalMoxWhenIdle = false;
+                }
+
+                Stop(owner);
+            }
+
+            private static int clampMacroSpeed(int speed)
+            {
+                return Math.Max(1, Math.Min(99, speed));
+            }
+
+            private static string decodeTciText(string text)
+            {
+                if (string.IsNullOrEmpty(text)) return string.Empty;
+                return text.Replace('^', ':').Replace('~', ',').Replace('*', ';');
+            }
+
+            private static string normalizeMessageField(string text)
+            {
+                text = decodeTciText(text);
+                return text == "_" ? string.Empty : text;
+            }
+
+            private static string translateAbbreviationToken(string token)
+            {
+                switch ((token ?? string.Empty).Trim().ToUpperInvariant())
+                {
+                    case "SK": return "*";
+                    case "AR": return "+";
+                    case "KN": return "(";
+                    case "SN": return "!";
+                    case "BT": return "=";
+                    case "BK": return "\\";
+                    case "AS": return "%";
+                    default: return token ?? string.Empty;
+                }
+            }
+
+            private static string buildRepeatedCallsign(string callsignBase, int repeatCount)
+            {
+                callsignBase = (callsignBase ?? string.Empty).Trim();
+                if (repeatCount < 2) return callsignBase;
+                return string.Join(" ", Enumerable.Repeat(callsignBase, repeatCount));
+            }
+
+            private static string parseCallsignBase(string callsign, out int repeatCount)
+            {
+                repeatCount = 1;
+                callsign = (callsign ?? string.Empty).Trim();
+
+                int dollarIndex = callsign.LastIndexOf('$');
+                if (dollarIndex > 0 && dollarIndex < callsign.Length - 1 &&
+                    int.TryParse(callsign.Substring(dollarIndex + 1), out int parsedRepeat))
+                {
+                    repeatCount = Math.Max(1, parsedRepeat);
+                    callsign = callsign.Substring(0, dollarIndex).Trim();
+                }
+
+                return callsign;
+            }
+
+            private static CWTextParseResult parseMacroText(string text, int startingSpeed)
+            {
+                CWTextParseResult result = new CWTextParseResult()
+                {
+                    FinalSpeedWpm = clampMacroSpeed(startingSpeed)
+                };
+
+                if (string.IsNullOrEmpty(text))
+                {
+                    result.Segments.Add(new CWTxSegment() { Text = " ", SpeedWpm = result.FinalSpeedWpm });
+                    return result;
+                }
+
+                StringBuilder current = new StringBuilder();
+
+                Action flushCurrent = () =>
+                {
+                    if (current.Length < 1) return;
+
+                    result.Segments.Add(new CWTxSegment()
+                    {
+                        Text = current.ToString(),
+                        SpeedWpm = result.FinalSpeedWpm
+                    });
+                    current.Clear();
+                };
+
+                for (int i = 0; i < text.Length; i++)
+                {
+                    char ch = text[i];
+
+                    if (ch == '|' && i + 1 < text.Length)
+                    {
+                        int end = text.IndexOf('|', i + 1);
+                        if (end > i + 1)
+                        {
+                            current.Append(translateAbbreviationToken(text.Substring(i + 1, end - i - 1)));
+                            i = end;
+                            continue;
+                        }
+                    }
+
+                    if (ch == '>' || ch == '<')
+                    {
+                        flushCurrent();
+                        result.UsedInlineSpeedChanges = true;
+                        result.FinalSpeedWpm = clampMacroSpeed(result.FinalSpeedWpm + (ch == '>' ? 5 : -5));
+                        continue;
+                    }
+
+                    current.Append(ch);
+                }
+
+                flushCurrent();
+
+                if (result.Segments.Count < 1)
+                    result.Segments.Add(new CWTxSegment() { Text = " ", SpeedWpm = result.FinalSpeedWpm });
+
+                return result;
+            }
+
+            private CWTxOperation buildMacroOperation(string text)
+            {
+                int baseSpeed = GetMacroSpeed();
+                CWTextParseResult parsed = parseMacroText(decodeTciText(text), baseSpeed);
+                CWTxOperation operation = new CWTxOperation()
+                {
+                    BaseSpeedWpm = baseSpeed,
+                    RestoreBaseSpeed = parsed.UsedInlineSpeedChanges
+                };
+                operation.Segments.AddRange(parsed.Segments);
+                return operation;
+            }
+
+            private CWTxOperation buildMessageOperation(string prefix, string callsign, string suffix)
+            {
+                int baseSpeed = GetMacroSpeed();
+                prefix = normalizeMessageField(prefix);
+                suffix = normalizeMessageField(suffix);
+                callsign = normalizeMessageField(callsign);
+
+                int repeatCount;
+                string callsignBase = parseCallsignBase(callsign, out repeatCount);
+                if (string.IsNullOrWhiteSpace(callsignBase))
+                    callsignBase = "?";
+
+                CWTextParseResult prefixParsed = parseMacroText(prefix, baseSpeed);
+                CWTextParseResult suffixParsed = parseMacroText(suffix, prefixParsed.FinalSpeedWpm);
+
+                CWTxOperation operation = new CWTxOperation()
+                {
+                    BaseSpeedWpm = baseSpeed,
+                    RestoreBaseSpeed = prefixParsed.UsedInlineSpeedChanges || suffixParsed.UsedInlineSpeedChanges,
+                    CallsignBase = callsignBase
+                };
+
+                if (!string.IsNullOrEmpty(prefix))
+                    operation.Segments.AddRange(prefixParsed.Segments);
+
+                operation.CallsignSegmentIndex = operation.Segments.Count;
+                operation.Segments.Add(new CWTxSegment()
+                {
+                    Text = buildRepeatedCallsign(callsignBase, repeatCount),
+                    SpeedWpm = prefixParsed.FinalSpeedWpm
+                });
+
+                if (!string.IsNullOrEmpty(suffix))
+                    operation.Segments.AddRange(suffixParsed.Segments);
+
+                return operation;
+            }
+
+            private void PollCallback(object state)
+            {
+                lock (_lockObj)
+                {
+                    if (_disposed) return;
+
+                    if ((_activeOperation != null || _pendingOperations.Count > 0 || _keyerPressed) && !isCWModeLocked())
+                    {
+                        abortOperationsForNonCWLocked();
+                        return;
+                    }
+
+                    if (_activeOperation == null)
+                    {
+                        if (_releaseTerminalMoxWhenIdle)
+                            releaseTerminalMoxIfOwnedLocked();
+
+                        startNextOperationLocked();
+                        return;
+                    }
+
+                    int pendingRemote = InvokeOnConsole(c => c.CWXForm.PendingRemoteCharacters, 0);
+                    int pendingElements = InvokeOnConsole(c => c.CWXForm.Characters2Send, 0);
+                    bool idle = pendingRemote <= 0 && pendingElements <= 0;
+
+                    if (_terminalEnabled &&
+                        !_activeOperation.EmptyNotified &&
+                        _activeOperation.NextSegmentIndex >= _activeOperation.Segments.Count &&
+                        pendingRemote <= 0 &&
+                        pendingElements > 0)
+                    {
+                        _activeOperation.EmptyNotified = true;
+                        _server.OnCwMacrosEmpty();
+                    }
+
+                    if (!idle) return;
+
+                    if (_activeOperation.ActiveSegmentIndex == _activeOperation.CallsignSegmentIndex &&
+                        !_activeOperation.CallsignNotified)
+                    {
+                        _activeOperation.CallsignNotified = true;
+                        _server.OnCwCallsignSent(_activeOperation.CallsignBase);
+                    }
+
+                    if (_activeOperation.NextSegmentIndex < _activeOperation.Segments.Count)
+                    {
+                        queueNextSegmentLocked();
+                    }
+                    else
+                    {
+                        completeActiveOperationLocked();
+                    }
+                }
+            }
+
+            private void startNextOperationLocked()
+            {
+                if (_activeOperation != null || _pendingOperations.Count < 1 || _keyerPressed) return;
+                if (!isCWModeLocked()) return;
+
+                _activeOperation = _pendingOperations.Dequeue();
+                ensureTerminalMoxLocked();
+                queueNextSegmentLocked();
+            }
+
+            private void queueNextSegmentLocked()
+            {
+                if (_activeOperation == null) return;
+                if (_activeOperation.NextSegmentIndex >= _activeOperation.Segments.Count) return;
+                if (!isCWModeLocked())
+                {
+                    abortOperationsForNonCWLocked();
+                    return;
+                }
+
+                CWTxSegment segment = _activeOperation.Segments[_activeOperation.NextSegmentIndex];
+                string text = string.IsNullOrEmpty(segment.Text) ? " " : segment.Text;
+
+                ensureTerminalMoxLocked();
+
+                SetMacroSpeedSilently(segment.SpeedWpm);
+                InvokeOnConsole(c =>
+                {
+                    byte[] bytes = Encoding.ASCII.GetBytes(text);
+                    if (bytes.Length > 1)
+                        c.CWXForm.RemoteMessage(bytes);
+                    else
+                        c.CWXForm.RemoteMessage(bytes.Length == 1 ? (char)bytes[0] : ' ');
+                });
+
+                _activeOperation.ActiveSegmentIndex = _activeOperation.NextSegmentIndex;
+                _activeOperation.NextSegmentIndex++;
+            }
+
+            private void completeActiveOperationLocked()
+            {
+                CWTxOperation completed = _activeOperation;
+                _activeOperation = null;
+
+                if (completed != null && completed.RestoreBaseSpeed)
+                    SetMacroSpeedSilently(completed.BaseSpeedWpm);
+
+                if (!_terminalEnabled || _releaseTerminalMoxWhenIdle)
+                    releaseTerminalMoxIfOwnedLocked();
+
+                startNextOperationLocked();
+                releaseOwnershipIfIdleLocked();
+                updateCwxInUseStateLocked();
+            }
+
+            private void updateCwxInUseStateLocked()
+            {
+                bool inUse = _terminalEnabled || _activeOperation != null || _pendingOperations.Count > 0 || _keyerPressed;
+                InvokeOnConsole(c => c.CWXForm.SetTCIInUse(inUse));
+            }
+
+            private bool isCWModeLocked()
+            {
+                DSPMode mode = InvokeOnConsole(c =>
+                {
+                    bool txOnRx2 = c.RX2Enabled && c.VFOBTX;
+                    return txOnRx2 ? c.RX2DSPMode : c.RX1DSPMode;
+                }, DSPMode.FIRST);
+                return mode == DSPMode.CWL || mode == DSPMode.CWU;
+            }
+
+            private void abortOperationsForNonCWLocked()
+            {
+                int restoreSpeed = -1;
+
+                cancelKeyerReleaseTimerLocked();
+                _pendingOperations.Clear();
+
+                if (_activeOperation != null && _activeOperation.RestoreBaseSpeed)
+                    restoreSpeed = _activeOperation.BaseSpeedWpm;
+
+                _activeOperation = null;
+                bool stopKeyer = _keyerPressed || _keyerReleasePending;
+                _keyerPressed = false;
+                _keyerReleasePending = false;
+                _keyerPressedAtUtc = DateTime.MinValue;
+
+                if (restoreSpeed > 0)
+                    SetMacroSpeedSilently(restoreSpeed);
+
+                InvokeOnConsole(c => c.CWXForm.AbortSending());
+                if (stopKeyer)
+                    InvokeOnConsole(c => c.CWXForm.EndTCIKeyDown());
+                releaseTerminalMoxIfOwnedLocked();
+                releaseOwnershipIfIdleLocked();
+                updateCwxInUseStateLocked();
+            }
+
+            private bool isCurrentOwnerLocked(TCPIPtciSocketListener owner)
+            {
+                return owner == null || (_currentOwner != null && ReferenceEquals(_currentOwner, owner));
+            }
+
+            private bool tryAcquireOwnershipLocked(TCPIPtciSocketListener owner)
+            {
+                if (owner == null) return true;
+
+                if (_currentOwner == null || ReferenceEquals(_currentOwner, owner))
+                {
+                    _currentOwner = owner;
+                    return true;
+                }
+
+                return false;
+            }
+
+            private void releaseOwnershipIfIdleLocked()
+            {
+                if (!_terminalEnabled && _activeOperation == null && _pendingOperations.Count < 1 && !_keyerPressed)
+                    _currentOwner = null;
+            }
+
+            private void KeyerReleaseTimerCallback(object state)
+            {
+                lock (_lockObj)
+                {
+                    if (_disposed || !_keyerPressed) return;
+                    releaseKeyerLocked();
+                }
+            }
+
+            private void scheduleKeyerReleaseLocked(int durationMs)
+            {
+                DateTime desiredReleaseUtc = _keyerPressedAtUtc.AddMilliseconds(Math.Max(0, durationMs));
+                double remainingMs = (desiredReleaseUtc - DateTime.UtcNow).TotalMilliseconds;
+
+                if (remainingMs <= 0)
+                {
+                    releaseKeyerLocked();
+                    return;
+                }
+
+                _keyerReleasePending = true;
+                _keyerReleaseTimer.Change(Math.Max(1, (int)Math.Ceiling(remainingMs)), Timeout.Infinite);
+                updateCwxInUseStateLocked();
+            }
+
+            private void releaseKeyerLocked()
+            {
+                cancelKeyerReleaseTimerLocked();
+
+                if (!_keyerPressed && !_keyerReleasePending) return;
+
+                _keyerPressed = false;
+                _keyerReleasePending = false;
+                _keyerPressedAtUtc = DateTime.MinValue;
+
+                InvokeOnConsole(c => c.CWXForm.EndTCIKeyDown());
+                releaseOwnershipIfIdleLocked();
+                updateCwxInUseStateLocked();
+            }
+
+            private void cancelKeyerReleaseTimerLocked()
+            {
+                _keyerReleaseTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                _keyerReleasePending = false;
+            }
+
+            private bool selectKeyerTargetLocked(int trx)
+            {
+                return InvokeOnConsole(c =>
+                {
+                    if (trx == 1)
+                    {
+                        if (!c.RX2Enabled)
+                            return false;
+
+                        if (!c.VFOBTX)
+                            c.VFOBTX = true;
+
+                        return true;
+                    }
+
+                    if (c.RX2Enabled && c.VFOBTX)
+                        c.VFOATX = true;
+
+                    return true;
+                }, false);
+            }
+
+            private void ensureTerminalMoxLocked()
+            {
+                if (!_terminalEnabled) return;
+                if (_terminalMoxAsserted) return;
+                if (_activeOperation == null && _pendingOperations.Count < 1) return;
+
+                bool alreadyMox = InvokeOnConsole(c => c.MOX, false);
+                if (!alreadyMox)
+                {
+                    InvokeOnConsole(c => c.MOX = true);
+                    _terminalMoxAsserted = true;
+                }
+            }
+
+            private void releaseTerminalMoxIfOwnedLocked()
+            {
+                if (_terminalMoxAsserted)
+                    InvokeOnConsole(c => c.MOX = false);
+
+                _terminalMoxAsserted = false;
+                _releaseTerminalMoxWhenIdle = false;
+            }
+
+            private T InvokeOnConsole<T>(Func<Console, T> action, T defaultValue)
+            {
+                Console c = _server._console;
+                if (c == null || c.IsDisposed) return defaultValue;
+
+                try
+                {
+                    if (c.InvokeRequired)
+                        return (T)c.Invoke(action, c);
+
+                    return action(c);
+                }
+                catch
+                {
+                    return defaultValue;
+                }
+            }
+
+            private void InvokeOnConsole(Action<Console> action)
+            {
+                Console c = _server._console;
+                if (c == null || c.IsDisposed) return;
+
+                try
+                {
+                    if (c.InvokeRequired)
+                        c.Invoke(action, c);
+                    else
+                        action(c);
+                }
+                catch
+                {
+                }
+            }
+        }
+        #endregion
     }
 }
