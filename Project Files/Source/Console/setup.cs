@@ -37137,6 +37137,7 @@ namespace Thetis
             tbCFCPEG_Scroll(this, EventArgs.Empty);
             setCFCProfile(this, EventArgs.Empty);
         }
+        // END CFC para
 
         private void chkTCISwapIQ_CheckedChanged(object sender, EventArgs e)
         {
@@ -37198,7 +37199,11 @@ namespace Thetis
         {
             Display.ShowSpotFlags = chkTCI_spot_flags.Checked;
         }
-        // END CFC para
+
+        private void clrbtnWaterfall_time_label_colour_Changed(object sender, EventArgs e)
+        {
+            Display.WaterfallTimeColour = clrbtnWaterfall_time_label_colour.Color;
+        }
     }
 
     #region FormLoactionHelper
