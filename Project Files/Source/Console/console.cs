@@ -33,6 +33,7 @@
 // Modifications for using the new database import function.  W2PA, 29 May 2017
 // Support QSK, possible with Protocol-2 firmware v1.7 (Orion-MkI and Orion-MkII), and later.  W2PA, 5 April 2019 
 // Modfied heavily - Copyright (C) 2019-2026 Richard Samphire (MW0LGE)
+// ApacheLabs G1 support added throughout Thetis in various files, all changes marked  //N1GP G1 added
 //
 //============================================================================================//
 // Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
@@ -6820,7 +6821,8 @@ namespace Thetis
 
         private void setAlex1HPF(double freq)
         {
-            if ((HardwareSpecific.Hardware == HPSDRHW.OrionMKII) || (HardwareSpecific.Hardware == HPSDRHW.Saturn)) //DK1HLM
+            if ((HardwareSpecific.Hardware == HPSDRHW.OrionMKII) || (HardwareSpecific.Hardware == HPSDRHW.Saturn)
+               || (HardwareSpecific.Hardware == HPSDRHW.HermesIII)) //DK1HLM
             {
                 setBPF1ForOrionIISaturn(freq);
             }
@@ -8378,6 +8380,7 @@ namespace Thetis
                     }
                     break;
                 case HPSDRModel.HERMES:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN100:
                     P1_rxcount = 4;                     // RX4 used for puresignal feedback
@@ -8601,6 +8604,7 @@ namespace Thetis
                     //case HPSDRHW.Atlas: /// ???
                     case HPSDRHW.Hermes: // ANAN-10 ANAN-100 Heremes
                     case HPSDRHW.HermesII: // ANAN-10E ANAN-100B HeremesII
+                    case HPSDRHW.HermesIII: // ANAN-G1
                         switch (tot)
                         {
                             case 0: // off off off
@@ -8693,6 +8697,7 @@ namespace Thetis
                         break;
                     //                    case HPSDRHW.Atlas: /// ???
                     case HPSDRHW.Hermes: // ANAN-10 ANAN-100 Heremes (4 adc)
+                    case HPSDRHW.HermesIII: // ANAN-G1
                         switch (tot)
                         {
                             case 0: // off off off
@@ -10024,6 +10029,7 @@ namespace Thetis
                 HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                 HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                 HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                 HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -10998,6 +11004,7 @@ namespace Thetis
                     HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                     HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                     HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                    HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                     HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -11023,6 +11030,7 @@ namespace Thetis
                         HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                         HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                         HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                        HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                         HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -11166,6 +11174,7 @@ namespace Thetis
                     HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                     HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                     HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                    HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                     HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -14818,6 +14827,10 @@ namespace Thetis
                     chkDX.Visible = false;
                     _rx2_preamp_present = true;
                     break;
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
+                    chkDX.Visible = false;
+                    _rx2_preamp_present = false;
+                    break;
                 case HPSDRModel.ANAN_G2:
                     chkDX.Visible = false;
                     _rx2_preamp_present = true;
@@ -14852,6 +14865,7 @@ namespace Thetis
                 case HPSDRModel.ORIONMKII:
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANAN8000D:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
@@ -15392,6 +15406,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                     NetworkIO.VFOfreq(0, rx1_dds_freq_mhz, 0);
                     break;
                 default:
@@ -15426,6 +15441,7 @@ namespace Thetis
             switch (HardwareSpecific.Model)
             {
                 case HPSDRModel.HERMES:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
@@ -19291,6 +19307,7 @@ namespace Thetis
                         HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                         HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                         HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                        HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                         HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -19466,6 +19483,7 @@ namespace Thetis
                     HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                     HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                     HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
+                    HardwareSpecific.Model == HPSDRModel.ANAN_G1 ||  //N1GP G1 added
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -20904,22 +20922,31 @@ namespace Thetis
             }
         }
 
-        private int fm_deviation_hz = 5000;
+        private int _fm_deviation_hz = 5000;
+        private bool m_bUpdatingFMDeviation = false;
         public int FMDeviation_Hz
         {
-            get { return fm_deviation_hz; }
+            get { return _fm_deviation_hz; }
             set
             {
-                fm_deviation_hz = value;
-                if (fm_deviation_hz == 5000)
+                int oldDeviationHz = _fm_deviation_hz;
+
+                _fm_deviation_hz = value;
+                if (_fm_deviation_hz == 5000)
                 {
                     radFMDeviation2kHz.Checked = false;
                     radFMDeviation5kHz.Checked = true;
                 }
-                else if (fm_deviation_hz == 2500)
+                else if (_fm_deviation_hz == 2500)
                 {
                     radFMDeviation5kHz.Checked = false;
                     radFMDeviation2kHz.Checked = true;
+                }
+
+                if (oldDeviationHz != _fm_deviation_hz)
+                {
+                    FMDeviationChangedHandlers?.Invoke(1, oldDeviationHz, _fm_deviation_hz);
+                    FMDeviationChangedHandlers?.Invoke(2, oldDeviationHz, _fm_deviation_hz);
                 }
             }
         }
@@ -22509,9 +22536,13 @@ namespace Thetis
                     case MeterTXMode.REVERSE_POWER:
                         if (alexpresent || apollopresent) num = Math.Round(num);
 
-                        if (alexpresent && ((HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
+                        if (alexpresent && ((
+                                             HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
                                              HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
-                                             HardwareSpecific.Model == HPSDRModel.REDPITAYA) && tx_xvtr_index < 0)) //DH1KLM
+                                             HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
+                                             HardwareSpecific.Model == HPSDRModel.REDPITAYA //DH1KLM
+                                             ) 
+                                             && tx_xvtr_index < 0)) 
                         {
                             if (bDrawMarkers)
                             {
@@ -24968,6 +24999,7 @@ namespace Thetis
                     break;
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANVELINAPRO3:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:                 // will need to be edited for scaling
                 case HPSDRModel.REDPITAYA: //DH1KLM
@@ -25041,6 +25073,7 @@ namespace Thetis
                     break;
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANVELINAPRO3:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:             // !K will need different scaling
                 case HPSDRModel.REDPITAYA: //DH1KLM
@@ -25766,6 +25799,7 @@ namespace Thetis
                         HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                         HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                         HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
+                        HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                         HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -25791,6 +25825,7 @@ namespace Thetis
                         HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                         HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                         HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
+                        HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                         HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -25819,7 +25854,7 @@ namespace Thetis
                     if (NetworkIO.CurrentRadioProtocol == RadioProtocol.USB)
                     {
                         // protocol 1
-                        if (HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D || HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM should be in P1
+                        if (HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D || HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM should be in P1  //N1GP G1 added
                             inhibit_input = !NetworkIO.getUserI02(); // bit[2] of C1 where C0 = 00000000 (C&C)
                         else
                             inhibit_input = !NetworkIO.getUserI01(); // bit[1] of C1 where C0 = 00000000 (C&C)
@@ -25963,6 +25998,7 @@ namespace Thetis
                         case HPSDRModel.ORIONMKII:
                         case HPSDRModel.ANAN7000D:
                         case HPSDRModel.ANAN8000D:
+                        case HPSDRModel.ANAN_G1: //N1GP G1 added
                         case HPSDRModel.ANAN_G2:
                         case HPSDRModel.ANAN_G2_1K:
                         case HPSDRModel.ANVELINAPRO3:
@@ -27611,6 +27647,7 @@ namespace Thetis
                             break;
                         // 4 & 5 DDC Models
                         case HPSDRModel.HERMES:
+                        case HPSDRModel.ANAN_G1: //
                         case HPSDRModel.ANAN10:
                         case HPSDRModel.ANAN100:
                         case HPSDRModel.ANAN100D:
@@ -27629,6 +27666,7 @@ namespace Thetis
                     {
                         // 2-DDC Models
                         case HPSDRModel.HERMES:
+                        case HPSDRModel.ANAN_G1: //N1GP G1 added
                         case HPSDRModel.ANAN10E:
                         case HPSDRModel.ANAN10:
                         case HPSDRModel.ANAN100B:
@@ -31311,6 +31349,7 @@ namespace Thetis
                  HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                  HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                  HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
+                 HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                  HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                  HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                  HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -32524,7 +32563,8 @@ namespace Thetis
                 }
 
                 if (_mox && (HardwareSpecific.Hardware == HPSDRHW.Hermes ||
-                            HardwareSpecific.Hardware == HPSDRHW.HermesII))
+                            HardwareSpecific.Hardware == HPSDRHW.HermesII ||
+                            HardwareSpecific.Hardware == HPSDRHW.HermesIII))
                 {
                     if (chkVFOSplit.Checked)
                     {
@@ -32555,7 +32595,8 @@ namespace Thetis
                 if (_mox)
                 {
                     if (HardwareSpecific.Hardware == HPSDRHW.Hermes ||
-                         HardwareSpecific.Hardware == HPSDRHW.HermesII)
+                         HardwareSpecific.Hardware == HPSDRHW.HermesII ||
+                         HardwareSpecific.Hardware == HPSDRHW.HermesIII)
                     {
                         if (chkVFOSplit.Checked)
                         {
@@ -40347,6 +40388,9 @@ namespace Thetis
         {
             if (radFMDeviation2kHz.Checked)
             {
+                int oldDeviationHz = _fm_deviation_hz;
+
+                _fm_deviation_hz = 2500;
                 radio.GetDSPTX(0).TXFMDeviation = 2500;
                 radio.GetDSPRX(0, 0).RXFMDeviation = 2500;
                 radio.GetDSPRX(1, 0).RXFMDeviation = 2500;
@@ -40366,6 +40410,12 @@ namespace Thetis
                     int halfBw = (int)(radio.GetDSPTX(0).TXFMDeviation + radio.GetDSPTX(0).TXFMHighCut); //[2.10.3.4]MW0LGE
                     SetTXFilters(DSPMode.FM, -halfBw, halfBw, force);
                 }
+
+                if (!m_bUpdatingFMDeviation && oldDeviationHz != _fm_deviation_hz)
+                {
+                    FMDeviationChangedHandlers?.Invoke(1, oldDeviationHz, _fm_deviation_hz);
+                    FMDeviationChangedHandlers?.Invoke(2, oldDeviationHz, _fm_deviation_hz);
+                }
             }
         }
         private void radFMDeviation5kHz_CheckedChanged(object sender, EventArgs e)
@@ -40376,6 +40426,9 @@ namespace Thetis
         {
             if (radFMDeviation5kHz.Checked)
             {
+                int oldDeviationHz = _fm_deviation_hz;
+
+                _fm_deviation_hz = 5000;
                 radio.GetDSPTX(0).TXFMDeviation = 5000;
                 radio.GetDSPRX(0, 0).RXFMDeviation = 5000;
                 radio.GetDSPRX(1, 0).RXFMDeviation = 5000;
@@ -40394,6 +40447,12 @@ namespace Thetis
                 {
                     int halfBw = (int)(radio.GetDSPTX(0).TXFMDeviation + radio.GetDSPTX(0).TXFMHighCut); //[2.10.3.4]MW0LGE
                     SetTXFilters(DSPMode.FM, -halfBw, halfBw, force);
+                }
+
+                if (!m_bUpdatingFMDeviation && oldDeviationHz != _fm_deviation_hz)
+                {
+                    FMDeviationChangedHandlers?.Invoke(1, oldDeviationHz, _fm_deviation_hz);
+                    FMDeviationChangedHandlers?.Invoke(2, oldDeviationHz, _fm_deviation_hz);
                 }
             }
         }
@@ -40807,6 +40866,7 @@ namespace Thetis
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANAN8000D:
                 case HPSDRModel.ORIONMKII:
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
@@ -45011,6 +45071,8 @@ namespace Thetis
         public delegate void CWKeyerSpeedChanged(int old_speed, int new_speed);
         public delegate void CWXShown(bool shown);
 
+        public delegate void FMDeviationChanged(int rx, int oldDeviationHz, int newDeviationHz);
+
         public BandPreChange BandPreChangeHandlers; // when someone clicks a band button, before a change is made
         public BandNoChange BandNoChangeHandlers;
         public BandChanged BandChangeHandlers;
@@ -45030,7 +45092,7 @@ namespace Thetis
 
         public AttenuatorDataChanged AttenuatorDataChangedHandlers;
         public PreampModeChanged PreampModeChangedHandlers;
-        public StepAttEnabledChanged StepAttEnabledChangedHandlers;
+        public StepAttEnabledChanged StepAttEnabledChangedHandlers;        
 
         public FilterEdgesChanged FilterEdgesChangedHandlers;
         public SplitChanged SplitChangedHandlers;
@@ -45171,6 +45233,8 @@ namespace Thetis
         public CWXRemoteCharacterStarted CWXRemoteCharacterStartedHandlers;
         public CWKeyerSpeedChanged CWKeyerSpeedChangedHandlers;
         public CWXShown CWXShownHandlers;
+
+        public FMDeviationChanged FMDeviationChangedHandlers;
 
         private bool m_bIgnoreFrequencyDupes = false;               // if an update is to be made, but the frequency is already in the filter, ignore it
         private bool m_bHideBandstackWindowOnSelect = false;        // hide the window if an entry is selected
@@ -52968,6 +53032,7 @@ namespace Thetis
                 HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                 HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                 HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
+                HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                 HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -53029,7 +53094,7 @@ namespace Thetis
                 PreampMode pamode = PreampMode.FIRST;
 
                 bool use_sa = HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                                HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
+                                HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G1 added
                                 HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN10 || HardwareSpecific.Model == HPSDRModel.ANAN10E ||
                                 (!alexpresent && (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.ANAN100D ||
                                 HardwareSpecific.Model == HPSDRModel.ANAN200D || HardwareSpecific.Model == HPSDRModel.REDPITAYA
@@ -53188,7 +53253,7 @@ namespace Thetis
             else
             {
                 bool use_sa = HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                    HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
+                    HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G1 added
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN10 || HardwareSpecific.Model == HPSDRModel.ANAN10E ||
                     (!alexpresent && (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.ANAN100D ||
                     HardwareSpecific.Model == HPSDRModel.ANAN200D || HardwareSpecific.Model == HPSDRModel.REDPITAYA
