@@ -33,7 +33,7 @@
 // Modifications for using the new database import function.  W2PA, 29 May 2017
 // Support QSK, possible with Protocol-2 firmware v1.7 (Orion-MkI and Orion-MkII), and later.  W2PA, 5 April 2019 
 // Modfied heavily - Copyright (C) 2019-2026 Richard Samphire (MW0LGE)
-// ApacheLabs G2E support added throughout Thetis in various files, all changes marked  //N1GP G2E added
+// ApacheLabs G1 support added throughout Thetis in various files, all changes marked  //N1GP G1 added
 //
 //============================================================================================//
 // Dual-Licensing Statement (Applies Only to Author's Contributions, Richard Samphire MW0LGE) //
@@ -6829,7 +6829,7 @@ namespace Thetis
         private void setAlex1HPF(double freq)
         {
             if ((HardwareSpecific.Hardware == HPSDRHW.OrionMKII) || (HardwareSpecific.Hardware == HPSDRHW.Saturn)
-               || (HardwareSpecific.Hardware == HPSDRHW.HermesC10))  //N1GP G2E added (HermesC10) //DK1HLM
+               || (HardwareSpecific.Hardware == HPSDRHW.HermesIII)) //DK1HLM
             {
                 setBPF1ForOrionIISaturn(freq);
             }
@@ -8387,7 +8387,7 @@ namespace Thetis
                     }
                     break;
                 case HPSDRModel.HERMES:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN100:
                     P1_rxcount = 4;                     // RX4 used for puresignal feedback
@@ -8611,7 +8611,7 @@ namespace Thetis
                     //case HPSDRHW.Atlas: /// ???
                     case HPSDRHW.Hermes: // ANAN-10 ANAN-100 Heremes
                     case HPSDRHW.HermesII: // ANAN-10E ANAN-100B HeremesII
-                    case HPSDRHW.HermesC10: // ANAN-G2E //N1GP G2E added (HermesC10)
+                    case HPSDRHW.HermesIII: // ANAN-G1
                         switch (tot)
                         {
                             case 0: // off off off
@@ -8704,7 +8704,7 @@ namespace Thetis
                         break;
                     //                    case HPSDRHW.Atlas: /// ???
                     case HPSDRHW.Hermes: // ANAN-10 ANAN-100 Heremes (4 adc)
-                    case HPSDRHW.HermesC10: // ANAN-G2E //N1GP G2E added (HermesC10)
+                    case HPSDRHW.HermesIII: // ANAN-G1
                         switch (tot)
                         {
                             case 0: // off off off
@@ -10036,7 +10036,7 @@ namespace Thetis
                 HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                 HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                 HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                 HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -11011,7 +11011,7 @@ namespace Thetis
                     HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                     HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                     HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                    HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                    HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                     HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -11037,7 +11037,7 @@ namespace Thetis
                         HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                         HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                         HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                        HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                        HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                         HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -11181,7 +11181,7 @@ namespace Thetis
                     HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                     HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                     HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                    HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                    HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                     HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                     HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -14834,7 +14834,7 @@ namespace Thetis
                     chkDX.Visible = false;
                     _rx2_preamp_present = true;
                     break;
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                     chkDX.Visible = false;
                     _rx2_preamp_present = false;
                     break;
@@ -14872,7 +14872,7 @@ namespace Thetis
                 case HPSDRModel.ORIONMKII:
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANAN8000D:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
@@ -15413,7 +15413,7 @@ namespace Thetis
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
                 case HPSDRModel.ANAN100B:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                     NetworkIO.VFOfreq(0, rx1_dds_freq_mhz, 0);
                     break;
                 default:
@@ -15448,7 +15448,7 @@ namespace Thetis
             switch (HardwareSpecific.Model)
             {
                 case HPSDRModel.HERMES:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN10:
                 case HPSDRModel.ANAN10E:
                 case HPSDRModel.ANAN100:
@@ -19314,7 +19314,7 @@ namespace Thetis
                         HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                         HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                         HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                        HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                        HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                         HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                         HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -19490,7 +19490,7 @@ namespace Thetis
                     HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                     HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                     HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                    HardwareSpecific.Model == HPSDRModel.ANAN_G2E ||  //N1GP G2E added
+                    HardwareSpecific.Model == HPSDRModel.ANAN_G1 ||  //N1GP G1 added
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                     HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -22546,7 +22546,7 @@ namespace Thetis
                         if (alexpresent && ((
                                              HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
                                              HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
-                                             HardwareSpecific.Model == HPSDRModel.ANAN_G2E || //N1GP G2E added
+                                             HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                                              HardwareSpecific.Model == HPSDRModel.REDPITAYA //DH1KLM
                                              ) 
                                              && tx_xvtr_index < 0)) 
@@ -25006,7 +25006,7 @@ namespace Thetis
                     break;
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANVELINAPRO3:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:                 // will need to be edited for scaling
                 case HPSDRModel.REDPITAYA: //DH1KLM
@@ -25080,7 +25080,7 @@ namespace Thetis
                     break;
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANVELINAPRO3:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:             // !K will need different scaling
                 case HPSDRModel.REDPITAYA: //DH1KLM
@@ -25806,7 +25806,7 @@ namespace Thetis
                         HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                         HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                         HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                        HardwareSpecific.Model == HPSDRModel.ANAN_G2E || //N1GP G2E added
+                        HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                         HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -25832,7 +25832,7 @@ namespace Thetis
                         HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                         HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                         HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                        HardwareSpecific.Model == HPSDRModel.ANAN_G2E || //N1GP G2E added
+                        HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                         HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                         HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -25861,7 +25861,7 @@ namespace Thetis
                     if (NetworkIO.CurrentRadioProtocol == RadioProtocol.USB)
                     {
                         // protocol 1
-                        if (HardwareSpecific.Model == HPSDRModel.ANAN_G2E || HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D || HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM should be in P1  //N1GP G2E added
+                        if (HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D || HardwareSpecific.Model == HPSDRModel.REDPITAYA) //DH1KLM should be in P1  //N1GP G1 added
                             inhibit_input = !NetworkIO.getUserI02(); // bit[2] of C1 where C0 = 00000000 (C&C)
                         else
                             inhibit_input = !NetworkIO.getUserI01(); // bit[1] of C1 where C0 = 00000000 (C&C)
@@ -26005,7 +26005,7 @@ namespace Thetis
                         case HPSDRModel.ORIONMKII:
                         case HPSDRModel.ANAN7000D:
                         case HPSDRModel.ANAN8000D:
-                        case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                        case HPSDRModel.ANAN_G1: //N1GP G1 added
                         case HPSDRModel.ANAN_G2:
                         case HPSDRModel.ANAN_G2_1K:
                         case HPSDRModel.ANVELINAPRO3:
@@ -27654,7 +27654,7 @@ namespace Thetis
                             break;
                         // 4 & 5 DDC Models
                         case HPSDRModel.HERMES:
-                        case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                        case HPSDRModel.ANAN_G1: //
                         case HPSDRModel.ANAN10:
                         case HPSDRModel.ANAN100:
                         case HPSDRModel.ANAN100D:
@@ -27673,7 +27673,7 @@ namespace Thetis
                     {
                         // 2-DDC Models
                         case HPSDRModel.HERMES:
-                        case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                        case HPSDRModel.ANAN_G1: //N1GP G1 added
                         case HPSDRModel.ANAN10E:
                         case HPSDRModel.ANAN10:
                         case HPSDRModel.ANAN100B:
@@ -31356,7 +31356,7 @@ namespace Thetis
                  HardwareSpecific.Model == HPSDRModel.ORIONMKII ||
                  HardwareSpecific.Model == HPSDRModel.ANAN7000D ||
                  HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                 HardwareSpecific.Model == HPSDRModel.ANAN_G2E || //N1GP G2E added
+                 HardwareSpecific.Model == HPSDRModel.ANAN_G1 || //N1GP G1 added
                  HardwareSpecific.Model == HPSDRModel.ANAN_G2 ||
                  HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K ||
                  HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 ||
@@ -32571,7 +32571,7 @@ namespace Thetis
 
                 if (_mox && (HardwareSpecific.Hardware == HPSDRHW.Hermes ||
                             HardwareSpecific.Hardware == HPSDRHW.HermesII ||
-                            HardwareSpecific.Hardware == HPSDRHW.HermesC10)) //N1GP G2E added (HermesC10)
+                            HardwareSpecific.Hardware == HPSDRHW.HermesIII))
                 {
                     if (chkVFOSplit.Checked)
                     {
@@ -32603,7 +32603,7 @@ namespace Thetis
                 {
                     if (HardwareSpecific.Hardware == HPSDRHW.Hermes ||
                          HardwareSpecific.Hardware == HPSDRHW.HermesII ||
-                         HardwareSpecific.Hardware == HPSDRHW.HermesC10) //N1GP G2E added (HermesC10)
+                         HardwareSpecific.Hardware == HPSDRHW.HermesIII)
                     {
                         if (chkVFOSplit.Checked)
                         {
@@ -40873,7 +40873,7 @@ namespace Thetis
                 case HPSDRModel.ANAN7000D:
                 case HPSDRModel.ANAN8000D:
                 case HPSDRModel.ORIONMKII:
-                case HPSDRModel.ANAN_G2E: //N1GP G2E added
+                case HPSDRModel.ANAN_G1: //N1GP G1 added
                 case HPSDRModel.ANAN_G2:
                 case HPSDRModel.ANAN_G2_1K:
                 case HPSDRModel.ANVELINAPRO3:
@@ -53039,7 +53039,7 @@ namespace Thetis
                 HardwareSpecific.Model != HPSDRModel.ANAN7000D &&
                 HardwareSpecific.Model != HPSDRModel.ANAN8000D &&
                 HardwareSpecific.Model != HPSDRModel.ORIONMKII &&
-                HardwareSpecific.Model != HPSDRModel.ANAN_G2E && //N1GP G2E added
+                HardwareSpecific.Model != HPSDRModel.ANAN_G1 && //N1GP G1 added
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2 &&
                 HardwareSpecific.Model != HPSDRModel.ANAN_G2_1K &&
                 HardwareSpecific.Model != HPSDRModel.ANVELINAPRO3 &&
@@ -53101,7 +53101,7 @@ namespace Thetis
                 PreampMode pamode = PreampMode.FIRST;
 
                 bool use_sa = HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                                HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G2E || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G2E added
+                                HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G1 added
                                 HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN10 || HardwareSpecific.Model == HPSDRModel.ANAN10E ||
                                 (!alexpresent && (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.ANAN100D ||
                                 HardwareSpecific.Model == HPSDRModel.ANAN200D || HardwareSpecific.Model == HPSDRModel.REDPITAYA
@@ -53260,7 +53260,7 @@ namespace Thetis
             else
             {
                 bool use_sa = HardwareSpecific.Model == HPSDRModel.ANAN7000D || HardwareSpecific.Model == HPSDRModel.ANAN8000D ||
-                    HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G2E || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G2E added
+                    HardwareSpecific.Model == HPSDRModel.ORIONMKII || HardwareSpecific.Model == HPSDRModel.ANAN_G1 || HardwareSpecific.Model == HPSDRModel.ANAN_G2 || HardwareSpecific.Model == HPSDRModel.ANAN_G2_1K || //N1GP G1 added
                     HardwareSpecific.Model == HPSDRModel.ANVELINAPRO3 || HardwareSpecific.Model == HPSDRModel.ANAN10 || HardwareSpecific.Model == HPSDRModel.ANAN10E ||
                     (!alexpresent && (HardwareSpecific.Model == HPSDRModel.HERMES || HardwareSpecific.Model == HPSDRModel.ANAN100D ||
                     HardwareSpecific.Model == HPSDRModel.ANAN200D || HardwareSpecific.Model == HPSDRModel.REDPITAYA

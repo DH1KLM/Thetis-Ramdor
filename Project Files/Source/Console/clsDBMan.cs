@@ -290,11 +290,10 @@ namespace Thetis
             }
             // ctrl key upgrade
             bool ctrl_key_force_update = false;
-            bool updateFile = updateFileExists();
-            if (!new_db_from_reset && (Keyboard.IsKeyDown(Keys.LControlKey) || Keyboard.IsKeyDown(Keys.RControlKey) || updateFile))
+            if (!new_db_from_reset && (Keyboard.IsKeyDown(Keys.LControlKey) || Keyboard.IsKeyDown(Keys.RControlKey)))
             {
                 Thread.Sleep(500); // ensure this is intentional
-                if (Keyboard.IsKeyDown(Keys.LControlKey) || Keyboard.IsKeyDown(Keys.RControlKey) || updateFile)
+                if (Keyboard.IsKeyDown(Keys.LControlKey) || Keyboard.IsKeyDown(Keys.RControlKey))
                 {
                     DialogResult dr = MessageBox.Show(
                          "The database force update has been triggered. Do you want to do this?\n\n",                         
@@ -389,7 +388,7 @@ namespace Thetis
                         _ignore_written = false;
 
                         //check version
-                        if(ok) checkVersion(made_new, ctrl_key_force_update, updateFile);
+                        if(ok) checkVersion(made_new, ctrl_key_force_update);
 
                         if(ok) // note, the TakeBackup above will not prune, as the DB has not been recovered for the flag PruneBackups
                         {
@@ -425,42 +424,7 @@ namespace Thetis
 
             return ok;
         }
-        private static bool updateFileExists()
-        {
-            try
-            {
-                string file_path = Path.Combine(_app_data_path, "updatedb.txt");
-                return File.Exists(file_path);
-            }
-            catch { return false; }
-        }
-        private static bool renameUpdatedb()
-        {
-            try
-            {
-                string source_path = Path.Combine(_app_data_path, "updatedb.txt");
-
-                if (!File.Exists(source_path))
-                    return false;
-
-                string date_time = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string target_path = Path.Combine(_app_data_path, "updatedb_success_" + date_time + ".txt");
-
-                int n = 1;
-
-                while (File.Exists(target_path))
-                {
-                    target_path = Path.Combine(_app_data_path, "updatedb_success_" + date_time + "_" + n.ToString() + ".txt");
-                    n++;
-                }
-
-                File.Move(source_path, target_path);
-                return true;
-            }
-            catch { return false; }
-        }
-
-        private static void checkVersion(bool made_new, bool force_upgrade = false, bool force_upgrade_via_file = false)
+        private static void checkVersion(bool made_new, bool force_upgrade = false)
         {
             string version;
             Dictionary<string, string> vals = DB.GetVarsDictionary("State");
@@ -472,7 +436,7 @@ namespace Thetis
             if (made_new) return;
             if (!force_upgrade && Common.GetVerNum() == version) return; // same version, dont need to do anything
 
-            string force_info = force_upgrade ? "Force database update requested.\n\n" : "";
+            string force_info = force_upgrade ? "CTRL Key force DB update. " : "";
             
             DialogResult dr = MessageBox.Show(force_info + "This version [" + Common.GetVerNum() + "] of Thetis requires your database [" + version + "] to be updated.\n\n" +
                 "A new updated database will be created, and your old database merged into it. It will be made active.",
@@ -504,8 +468,6 @@ namespace Thetis
                 // not sure we want to do this
                 //// then delete the orginal
                 //RemoveDB(guid_original, true);
-
-                if(force_upgrade_via_file) renameUpdatedb();
 
                 dr = MessageBox.Show("The database update was completed sucessfully.",
                     "Database Manager",
